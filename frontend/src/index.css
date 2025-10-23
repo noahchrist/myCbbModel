@@ -110,3 +110,122 @@ button:focus-visible {
 .read-the-docs {
   color: #888;
 }
+
+/* Homepage Styles */
+.homepage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #333;
+}
+
+.title {
+  font-size: 2rem;
+  margin: 0;
+  color: #646cff;
+}
+
+.auth-section {
+  font-size: 0.9rem;
+  color: #888;
+  cursor: pointer;
+}
+
+.navigation {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: color 0.3s;
+}
+
+.nav-button:hover {
+  color: #646cff;
+}
+
+.nav-button.active {
+  color: #646cff;
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.sliders-container {
+  width: 100%;
+  max-width: 800px;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.slider-category {
+  width: 200px;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.slider-wrapper {
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #333;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #646cff;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #646cff;
+  cursor: pointer;
+  border: none;
+}
+
+.slider-percentage {
+  width: 50px;
+  text-align: right;
+  font-size: 0.9rem;
+  color: #ccc;
+}
