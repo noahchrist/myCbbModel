@@ -2,16 +2,16 @@ import { useState } from 'react';
 
 const HomePage = () => {
   const [sliders, setSliders] = useState([
-    { id: 1, category: 'Offensive Rating', value: 5 },
-    { id: 2, category: 'Defensive Rating', value: 5 },
+    { id: 1, category: 'General Offense', value: 5 },
+    { id: 2, category: 'General Defense', value: 5 },
     { id: 3, category: 'Pace', value: 5 },
-    { id: 4, category: 'Rebounding', value: 5 },
-    { id: 5, category: 'Turnovers', value: 5 },
-    { id: 6, category: 'Free Throw Rate', value: 5 },
-    { id: 7, category: 'Three Point %', value: 5 },
-    { id: 8, category: 'Experience', value: 5 },
-    { id: 9, category: 'Strength of Schedule', value: 5 },
-    { id: 10, category: 'Home Court Advantage', value: 5 }
+    { id: 4, category: 'Three Point Shooting', value: 5 },
+    { id: 5, category: 'Free Throw Shooting', value: 5 },
+    { id: 6, category: 'Perimeter Defense', value: 5 },
+    { id: 7, category: 'Interior Defense', value: 5 },
+    { id: 8, category: 'Rebounding', value: 5 },
+    { id: 9, category: 'Playmaking', value: 5 },
+    { id: 10, category: 'Intangibles', value: 5 }
   ]);
 
   const handleSliderChange = (id, newValue) => {
@@ -24,7 +24,7 @@ const HomePage = () => {
     <div className="homepage">
       {/* Header */}
       <header className="header">
-        <h1 className="title">myCbbModel</h1>
+        <h1 className="title">weightroom.io</h1>
         <div className="auth-section">
           <span>Sign In / Register</span>
         </div>
@@ -58,6 +58,9 @@ const HomePage = () => {
               <div className="slider-percentage">{slider.value}</div>
             </div>
           ))}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
+            <button>Train Model</button>
+          </div>
         </div>
       </main>
     </div>
