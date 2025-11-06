@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne+Mono&display=swap');
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Syne Mono', monospace;
   line-height: 1.5;
   font-weight: 400;
 
@@ -43,7 +45,7 @@ body::before {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  opacity: 0.15;
+  opacity: 0.08;
   z-index: -1;
 }
 
@@ -134,7 +136,7 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   background-color: rgba(200, 200, 200, 1);
-  border: 2px solid #ff8c00;
+  border: 2px solid #cc5500;
   border-radius: 12px;
   margin: 2rem;
 }
@@ -208,8 +210,8 @@ button:focus-visible {
 
 .slider-category {
   width: 200px;
-  font-size: 0.9rem;
-  color: #ff8c00;
+  font-size: 1.1rem;
+  color: #cc5500;
   font-weight: bold;
 }
 
@@ -248,7 +250,7 @@ button:focus-visible {
 .slider-percentage {
   width: 50px;
   text-align: right;
-  font-size: 0.9rem;
-  color: #ff8c00;
+  font-size: 1.1rem;
+  color: #cc5500;
   font-weight: bold;
 }
