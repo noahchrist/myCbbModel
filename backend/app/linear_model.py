@@ -105,11 +105,8 @@ def main():
     os.makedirs("output", exist_ok=True)
     coef_path = f"output/{timestamp}_{file_prefix}_coefficients.csv"
     coef_df.to_csv(coef_path, index=False)
-    print(f"\n🧠 Top 10 positive coefficients:")
-    print(coef_df.head(10).to_string(index=False))
-    
-    print(f"\n🧠 Top 10 negative coefficients:")
-    print(coef_df.tail(10).to_string(index=False))
+    print(f"\n🧠 Top 25 positive coefficients:")
+    print(coef_df.head(25).to_string(index=False))
 
     print(f"\n🧩 Coefficients saved to: {coef_path}")
     
