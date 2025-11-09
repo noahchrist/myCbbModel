@@ -1,58 +1,39 @@
 import sqlite3
-import logging
 import os
-
-# ==============================================
-# Logging Setup
-# ==============================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("create_training_dataset.log"),
-        logging.StreamHandler()
-    ]
-)
 
 # ==============================================
 # Setup
 # ==============================================
 
-SOURCE_DB = "data/master.db"
-TARGET_DB = "data/training.db"
+DB_PATH = "./data/master.db"
 TARGET_TABLE = "setAlpha"
 
-logging.info("Starting training dataset creation")
+print("Starting training dataset creation")
 
 # ==============================================
 # Create Training Database
 # ==============================================
 
-# Remove existing training.db if it exists
-if os.path.exists(TARGET_DB):
-    os.remove(TARGET_DB)
-    logging.info("Removed existing training.db")
+# Connect to master database
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
 
-# Create new training database
-training_conn = sqlite3.connect(TARGET_DB)
-training_cursor = training_conn.cursor()
+# Drop setAlpha table if it exists
+cursor.execute("DROP TABLE IF EXISTS setAlpha")
+conn.commit()
+print("Dropped existing setAlpha table if it existed")
 
-# Connect to source database
-source_conn = sqlite3.connect(SOURCE_DB)
-source_cursor = source_conn.cursor()
-
-logging.info("Connected to databases")
+print("Connected to master database")
 
 # ==============================================
 # Create setAlpha Table
 # ==============================================
 
-training_cursor.execute(f"""
+cursor.execute(f"""
 CREATE TABLE {TARGET_TABLE} (
     id INTEGER PRIMARY KEY,
-    home_id INTEGER,
-    away_id INTEGER,
+    home_kpid INTEGER,
+    away_kpid INTEGER,
     is_home INTEGER,
     is_neutral INTEGER,
     date TEXT,
@@ -113,12 +94,10 @@ CREATE TABLE {TARGET_TABLE} (
 )
 """)
 
-training_conn.commit()
-logging.info(f"Created {TARGET_TABLE} table")
+conn.commit()
+print(f"Created {TARGET_TABLE} table")
 
-# Attach source database to access its tables
-training_cursor.execute(f"ATTACH DATABASE '{SOURCE_DB}' AS source")
-logging.info("Attached source database")
+print("Ready to insert data")
 
 # ==============================================
 # Insert Training Data
@@ -126,7 +105,7 @@ logging.info("Attached source database")
 
 insert_sql = """
 INSERT INTO setAlpha (
-    id, home_id, away_id, is_home, is_neutral, date, season,
+    id, home_kpid, away_kpid, is_home, is_neutral, date, season,
     home_team, home_score, away_team, away_score, win_loss, pt_diff, pt_total,
     home_adjOffEff, home_effFgPct, home_adjDefEff, home_defEffFgPct, home_adjTempo,
     home_threesPct, home_threesRate, home_ftRate, home_ftPct, home_defFtRate,
@@ -164,74 +143,76 @@ SELECT
     ka.blockPct, ka.oppThreesPct, ka.oppThreesRate, ka.stlRate, ka.nonStlTrnvrRate,
     ka.offRebPct, ka.defRebPct, ka.astRate, ka.trnvrPct, ka.effHeight,
     ka.expRtg, ka.benchRtg, ka.contRtg
-FROM source.games_cleaned gc
-JOIN source.kenpom_cleaned kh ON gc.homeId = kh.teamId AND gc.season = kh.season
-JOIN source.kenpom_cleaned ka ON gc.awayId = ka.teamId AND gc.season = ka.season
+FROM games_cleaned gc
+JOIN kenpom_cleaned kh ON gc.homeId = kh.kpid AND gc.season = kh.season
+JOIN kenpom_cleaned ka ON gc.awayId = ka.kpid AND gc.season = ka.season
 """
 
-training_cursor.execute(insert_sql)
+print("Starting data insertion...")
 
-inserted_count = training_cursor.rowcount
-training_conn.commit()
 
-logging.info(f"Inserted {inserted_count} records into {TARGET_TABLE}")
+
+cursor.execute(insert_sql)
+inserted_count = cursor.rowcount
+conn.commit()
+
+print(f"✅ Inserted {inserted_count} records into {TARGET_TABLE}")
 
 # ==============================================
 # Verification and Summary
 # ==============================================
 
 # Get source counts
-source_cursor.execute("SELECT COUNT(*) FROM games_cleaned")
-games_count = source_cursor.fetchone()[0]
+cursor.execute("SELECT COUNT(*) FROM games_cleaned")
+games_count = cursor.fetchone()[0]
 
-source_cursor.execute("SELECT COUNT(*) FROM kenpom_cleaned")
-kenpom_count = source_cursor.fetchone()[0]
+cursor.execute("SELECT COUNT(*) FROM kenpom_cleaned")
+kenpom_count = cursor.fetchone()[0]
 
 # Get target count
-training_cursor.execute(f"SELECT COUNT(*) FROM {TARGET_TABLE}")
-training_count = training_cursor.fetchone()[0]
+cursor.execute(f"SELECT COUNT(*) FROM {TARGET_TABLE}")
+training_count = cursor.fetchone()[0]
 
 # Check for missing data
-training_cursor.execute(f"""
+cursor.execute(f"""
 SELECT COUNT(*) FROM {TARGET_TABLE} 
 WHERE home_adjOffEff IS NULL OR away_adjOffEff IS NULL
 """)
-missing_stats = training_cursor.fetchone()[0]
+missing_stats = cursor.fetchone()[0]
 
 # Sample verification
-training_cursor.execute(f"""
+cursor.execute(f"""
 SELECT season, COUNT(*) 
 FROM {TARGET_TABLE} 
 GROUP BY season 
 ORDER BY season
 """)
-season_counts = training_cursor.fetchall()
+season_counts = cursor.fetchall()
 
 # ==============================================
 # Final Summary
 # ==============================================
 
-logging.info(f"✅ Training dataset creation complete:")
-logging.info(f"  Source games_cleaned: {games_count} records")
-logging.info(f"  Source kenpom_cleaned: {kenpom_count} records")
-logging.info(f"  Training dataset: {training_count} records")
-logging.info(f"  Records with missing stats: {missing_stats}")
+print(f"✅ Training dataset creation complete:")
+print(f"  Source games_cleaned: {games_count} records")
+print(f"  Source kenpom_cleaned: {kenpom_count} records")
+print(f"  Training dataset: {training_count} records")
+print(f"  Records with missing stats: {missing_stats}")
 
 if missing_stats == 0:
-    logging.info("🎯 Perfect! No missing statistics")
+    print("🎯 Perfect! No missing statistics")
 else:
-    logging.warning(f"⚠️  {missing_stats} records have missing KenPom statistics")
+    print(f"⚠️  {missing_stats} records have missing KenPom statistics")
 
-logging.info("Records by season:")
+print("Records by season:")
 for season, count in season_counts:
-    logging.info(f"  {season}: {count} games")
+    print(f"  {season}: {count} games")
 
 # Sample record verification
-training_cursor.execute(f"SELECT * FROM {TARGET_TABLE} LIMIT 1")
-sample = training_cursor.fetchone()
+cursor.execute(f"SELECT * FROM {TARGET_TABLE} LIMIT 1")
+sample = cursor.fetchone()
 if sample:
-    logging.info(f"Sample record ID {sample[0]}: {sample[7]} vs {sample[9]} on {sample[5]}")
+    print(f"Sample record ID {sample[0]}: {sample[7]} vs {sample[9]} on {sample[5]}")
 
-source_conn.close()
-training_conn.close()
-logging.info(f"Training database saved to {TARGET_DB}")
+conn.close()
+print(f"Training dataset created in {DB_PATH}")
