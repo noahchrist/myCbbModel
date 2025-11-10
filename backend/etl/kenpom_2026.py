@@ -11,9 +11,9 @@ from dotenv import load_dotenv
 # Path Setup
 # ==============================================
 
-# Get the directory where this script is located (backend/app/)
+# Get the directory where this script is located (backend/etl/)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Get the backend directory (one level up from app/)
+# Get the backend directory (one level up from etl/)
 BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 
 # Define paths relative to backend directory
@@ -43,6 +43,7 @@ if not API_KEY:
 
 logging.info("🚀 STARTING KENPOM 2026 COMPLETE PIPELINE")
 logging.info(f"API Key loaded: {API_KEY[:10]}...{API_KEY[-10:]}")
+
 BASE_URL = "https://kenpom.com"
 SEASON = 2026
 DELAY_BETWEEN_TEAMS = 0.1
@@ -51,6 +52,35 @@ DELAY_BETWEEN_TEAMS = 0.1
 current_date = datetime.now().strftime("%m%d%Y")
 RAW_TABLE = f"kenpom_raw_{current_date}"
 CLEANED_TABLE = f"kenpom_cleaned_{current_date}"
+
+# ==============================================
+# User Confirmation
+# ==============================================
+
+print(f"\n📅 Current Date: {datetime.now().strftime('%Y-%m-%d')}")
+print(f"📊 Tables to be created: {RAW_TABLE}, {CLEANED_TABLE}")
+
+# Check if tables already exist
+conn_check = sqlite3.connect(DB_PATH)
+cursor_check = conn_check.cursor()
+
+cursor_check.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?)", (RAW_TABLE, CLEANED_TABLE))
+existing_tables = cursor_check.fetchall()
+conn_check.close()
+
+if existing_tables:
+    print(f"⚠️  Warning: The following tables already exist and will be replaced:")
+    for (table_name,) in existing_tables:
+        print(f"   - {table_name}")
+else:
+    print("✅ No existing tables found for today's date")
+
+response = input("\nDo you want to continue? (y/n): ").lower().strip()
+if response != 'y':
+    print("❌ Script cancelled by user")
+    exit(0)
+
+print("✅ Continuing with KenPom data pull...\n")
 
 # Fields to invert (multiply by -1) before normalization
 INVERT_FIELDS = [
