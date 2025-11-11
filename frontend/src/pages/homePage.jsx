@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 const HomePage = () => {
   const [activeSection, setActiveSection] = useState('Home');
+  const [isMobile, setIsMobile] = useState(false);
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -97,14 +98,21 @@ const HomePage = () => {
     }
   }, [activeSection, currentDate]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mediaQuery.matches);
+    
+    const handleChange = (e) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   return (
     <div className="homepage">
       {/* Header */}
       <header className="header">
-        <h1 className="title">weightroom.io</h1>
-        <div className="auth-section">
-          <span>Sign In / Register</span>
-        </div>
+        <h1 className="title">🏋️ weightroom.io 🏋️</h1>
       </header>
 
       {/* Navigation */}
@@ -128,10 +136,10 @@ const HomePage = () => {
           Community
         </button>
         <button 
-          className={`nav-button ${activeSection === 'Data Explorer' ? 'active' : ''}`}
-          onClick={() => setActiveSection('Data Explorer')}
+          className={`nav-button ${activeSection === 'Login' ? 'active' : ''}`}
+          onClick={() => setActiveSection('Login')}
         >
-          Data Explorer
+          Login
         </button>
       </nav>
 
@@ -204,19 +212,40 @@ const HomePage = () => {
           <div className="sliders-container">
             {sliders.map(slider => (
               <div key={slider.id} className="slider-row">
-                <div className="slider-category">{slider.category}</div>
-                <div className="slider-wrapper">
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    step="1"
-                    value={slider.value}
-                    onChange={(e) => handleSliderChange(slider.id, parseInt(e.target.value))}
-                    className="slider"
-                  />
-                </div>
-                <div className="slider-percentage">{slider.value}</div>
+                {isMobile ? (
+                  <>
+                    <div className="slider-category-mobile">
+                      {slider.category} - {slider.value}
+                    </div>
+                    <div className="slider-wrapper">
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="1"
+                        value={slider.value}
+                        onChange={(e) => handleSliderChange(slider.id, parseInt(e.target.value))}
+                        className="slider"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="slider-category">{slider.category}</div>
+                    <div className="slider-wrapper">
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        step="1"
+                        value={slider.value}
+                        onChange={(e) => handleSliderChange(slider.id, parseInt(e.target.value))}
+                        className="slider"
+                      />
+                    </div>
+                    <div className="slider-percentage">{slider.value}</div>
+                  </>
+                )}
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
@@ -231,9 +260,9 @@ const HomePage = () => {
           </div>
         )}
         
-        {activeSection === 'Data Explorer' && (
-          <div className="data-explorer-content">
-            <h2>Data Explorer section coming soon</h2>
+        {activeSection === 'Login' && (
+          <div className="login-content">
+            <h2>Login section coming soon</h2>
           </div>
         )}
       </main>

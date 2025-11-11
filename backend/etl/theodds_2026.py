@@ -319,31 +319,63 @@ def main():
             fd_odds = extract_fanduel_odds(game.get('bookmakers', []), home_team)
             dk_odds = extract_draftkings_odds(game.get('bookmakers', []), home_team)
             
-            # Insert or update record
-            cursor.execute("""
-            INSERT OR REPLACE INTO games2026 (
-                load_datetime, game_id, season, commence_time, game_date,
-                home_team, away_team, home_kpid, away_kpid,
-                fd_home_hhPrice, fd_away_hhPrice, fd_home_spread, fd_home_spreadPrice,
-                fd_away_spread, fd_away_spreadPrice, fd_over, fd_overPrice,
-                fd_under, fd_underPrice, dk_home_hhPrice, dk_away_hhPrice,
-                dk_home_spread, dk_home_spreadPrice, dk_away_spread, dk_away_spreadPrice,
-                dk_over, dk_overPrice, dk_under, dk_underPrice
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                datetime.now(), game_id, '2026', est_time, game_date,
-                home_team, away_team, home_kpid, away_kpid,
-                fd_odds.get('fd_home_hhPrice'), fd_odds.get('fd_away_hhPrice'),
-                fd_odds.get('fd_home_spread'), fd_odds.get('fd_home_spreadPrice'),
-                fd_odds.get('fd_away_spread'), fd_odds.get('fd_away_spreadPrice'),
-                fd_odds.get('fd_over'), fd_odds.get('fd_overPrice'),
-                fd_odds.get('fd_under'), fd_odds.get('fd_underPrice'),
-                dk_odds.get('dk_home_hhPrice'), dk_odds.get('dk_away_hhPrice'),
-                dk_odds.get('dk_home_spread'), dk_odds.get('dk_home_spreadPrice'),
-                dk_odds.get('dk_away_spread'), dk_odds.get('dk_away_spreadPrice'),
-                dk_odds.get('dk_over'), dk_odds.get('dk_overPrice'),
-                dk_odds.get('dk_under'), dk_odds.get('dk_underPrice')
-            ))
+            # Check if game exists and is completed
+            cursor.execute("SELECT is_completed FROM games2026 WHERE game_id = ?", (game_id,))
+            existing = cursor.fetchone()
+            
+            if existing and existing[0] == 1:
+                # Game is completed - skip odds update to preserve scores
+                continue
+            elif existing:
+                # Game exists but not completed - update odds only
+                cursor.execute("""
+                UPDATE games2026 SET
+                    load_datetime = ?, fd_home_hhPrice = ?, fd_away_hhPrice = ?,
+                    fd_home_spread = ?, fd_home_spreadPrice = ?, fd_away_spread = ?, fd_away_spreadPrice = ?,
+                    fd_over = ?, fd_overPrice = ?, fd_under = ?, fd_underPrice = ?,
+                    dk_home_hhPrice = ?, dk_away_hhPrice = ?, dk_home_spread = ?, dk_home_spreadPrice = ?,
+                    dk_away_spread = ?, dk_away_spreadPrice = ?, dk_over = ?, dk_overPrice = ?, dk_under = ?, dk_underPrice = ?
+                WHERE game_id = ?
+                """, (
+                    datetime.now(),
+                    fd_odds.get('fd_home_hhPrice'), fd_odds.get('fd_away_hhPrice'),
+                    fd_odds.get('fd_home_spread'), fd_odds.get('fd_home_spreadPrice'),
+                    fd_odds.get('fd_away_spread'), fd_odds.get('fd_away_spreadPrice'),
+                    fd_odds.get('fd_over'), fd_odds.get('fd_overPrice'),
+                    fd_odds.get('fd_under'), fd_odds.get('fd_underPrice'),
+                    dk_odds.get('dk_home_hhPrice'), dk_odds.get('dk_away_hhPrice'),
+                    dk_odds.get('dk_home_spread'), dk_odds.get('dk_home_spreadPrice'),
+                    dk_odds.get('dk_away_spread'), dk_odds.get('dk_away_spreadPrice'),
+                    dk_odds.get('dk_over'), dk_odds.get('dk_overPrice'),
+                    dk_odds.get('dk_under'), dk_odds.get('dk_underPrice'),
+                    game_id
+                ))
+            else:
+                # New game - insert full record
+                cursor.execute("""
+                INSERT INTO games2026 (
+                    load_datetime, game_id, season, commence_time, game_date,
+                    home_team, away_team, home_kpid, away_kpid,
+                    fd_home_hhPrice, fd_away_hhPrice, fd_home_spread, fd_home_spreadPrice,
+                    fd_away_spread, fd_away_spreadPrice, fd_over, fd_overPrice,
+                    fd_under, fd_underPrice, dk_home_hhPrice, dk_away_hhPrice,
+                    dk_home_spread, dk_home_spreadPrice, dk_away_spread, dk_away_spreadPrice,
+                    dk_over, dk_overPrice, dk_under, dk_underPrice
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    datetime.now(), game_id, '2026', est_time, game_date,
+                    home_team, away_team, home_kpid, away_kpid,
+                    fd_odds.get('fd_home_hhPrice'), fd_odds.get('fd_away_hhPrice'),
+                    fd_odds.get('fd_home_spread'), fd_odds.get('fd_home_spreadPrice'),
+                    fd_odds.get('fd_away_spread'), fd_odds.get('fd_away_spreadPrice'),
+                    fd_odds.get('fd_over'), fd_odds.get('fd_overPrice'),
+                    fd_odds.get('fd_under'), fd_odds.get('fd_underPrice'),
+                    dk_odds.get('dk_home_hhPrice'), dk_odds.get('dk_away_hhPrice'),
+                    dk_odds.get('dk_home_spread'), dk_odds.get('dk_home_spreadPrice'),
+                    dk_odds.get('dk_away_spread'), dk_odds.get('dk_away_spreadPrice'),
+                    dk_odds.get('dk_over'), dk_odds.get('dk_overPrice'),
+                    dk_odds.get('dk_under'), dk_odds.get('dk_underPrice')
+                ))
             odds_loaded += 1
         
         conn.commit()

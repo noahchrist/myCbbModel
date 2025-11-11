@@ -14,7 +14,7 @@ MASTER_DB_PATH = os.path.join(BACKEND_DIR, "data", "master.db")
 TRAIN_TABLE = "setAlpha"
 
 # === CORE TRAINING + PREDICTION ===
-def run_model(model_type, target_table):
+def run_model(model_type, target_table, total_bias=0):
     """Train linear regression model, evaluate, then predict using targetSet."""
     if model_type == "spread":
         TARGET = "pt_diff"
@@ -64,19 +64,29 @@ def run_model(model_type, target_table):
 
     # --- Make predictions ---
     predictions = model.predict(X_target)
+    
+    # Apply bias for total predictions
+    if model_type == "total" and total_bias != 0:
+        predictions = predictions + total_bias
+        print(f"  Applied {total_bias} point bias to total predictions")
+    
     df_target[f"pred_{TARGET}"] = predictions
 
     # --- Save predictions ---
     timestamp = datetime.now().strftime('%m%d%Y_%H%M%S')
     if model_type == "spread":
         out_table = f"predictionsLinearSpread_{timestamp}"
+        df_target[[
+            "game_id", "commence_time", "season", "home_team", "away_team",
+            f"pred_{TARGET}"
+        ]].to_sql(out_table, conn, if_exists="replace", index=False)
     else:
         out_table = f"predictionsLinearTotal_{timestamp}"
-    
-    df_target[[
-        "game_id", "commence_time", "season", "home_team", "away_team",
-        f"pred_{TARGET}"
-    ]].to_sql(out_table, conn, if_exists="replace", index=False)
+        df_target["userBias"] = total_bias
+        df_target[[
+            "game_id", "commence_time", "season", "home_team", "away_team",
+            f"pred_{TARGET}", "userBias"
+        ]].to_sql(out_table, conn, if_exists="replace", index=False)
 
     conn.close()
     print(f"✅ {len(df_target)} {model_name.lower()} predictions saved to table: {out_table}")
@@ -127,6 +137,32 @@ def display_all_predictions(df_with_spread, df_with_total):
 def main():
     print("🏀 Linear Regression Model Training + Prediction")
     
+    # Get current season average from completed games
+    conn = sqlite3.connect(MASTER_DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT AVG(pt_total) FROM games2026 WHERE is_completed = 1")
+    current_avg = cursor.fetchone()[0]
+    conn.close()
+    
+    # Prompt for total prediction bias
+    print("\n📊 Total Prediction Bias")
+    if current_avg:
+        difference = current_avg - 139.52
+        print(f"Historical avg: 139.52 pts, Current avg: {current_avg:.2f} pts ({difference:+.2f} difference)")
+    else:
+        print("Historical avg: 139.52 pts, Current avg: No completed games yet")
+    bias_input = input("Add bias to total predictions? (Enter number or 0 for none): ").strip()
+    
+    try:
+        total_bias = float(bias_input) if bias_input else 0
+    except ValueError:
+        total_bias = 0
+    
+    if total_bias != 0:
+        print(f"✅ Will add {total_bias} points to total predictions")
+    else:
+        print("✅ No bias will be applied")
+    
     # Get today's date for default table name
     today_table = f"setTarget_{datetime.now().strftime('%m%d%Y')}"
     
@@ -153,7 +189,7 @@ def main():
     
     # Run both models and get predictions
     df_spread = run_model("spread", target_table)
-    df_total = run_model("total", target_table)
+    df_total = run_model("total", target_table, total_bias)
     
     # Display all predictions with picks
     display_all_predictions(df_spread, df_total)
