@@ -17,7 +17,7 @@ BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 # Define paths relative to backend directory
 DATA_DIR = os.path.join(BACKEND_DIR, "data")
 LOGS_DIR = os.path.join(BACKEND_DIR, "logs")
-DB_PATH = os.path.join(DATA_DIR, "future.db")
+DB_PATH = os.path.join(DATA_DIR, "master.db")
 LOG_PATH = os.path.join(LOGS_DIR, "theodds_2026.log")
 
 # ==============================================
@@ -64,9 +64,9 @@ sqlite3.register_adapter(datetime.date, lambda d: d.isoformat())
 sqlite3.register_converter("DATETIME", lambda b: datetime.fromisoformat(b.decode()))
 sqlite3.register_converter("DATE", lambda b: datetime.fromisoformat(b.decode()).date())
 
-# Create gamesMaster_2026 table if it doesn't exist
+# Create games2026 table if it doesn't exist
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS gamesMaster_2026 (
+CREATE TABLE IF NOT EXISTS games2026 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     load_datetime DATETIME,
     game_id TEXT UNIQUE,
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS gamesMaster_2026 (
 )
 """)
 conn.commit()
-logging.info("✅ Database table gamesMaster_2026 ready")
+logging.info("✅ Database table games2026 ready")
 
 # ==============================================
 # User Confirmation
@@ -114,27 +114,27 @@ logging.info("✅ Database table gamesMaster_2026 ready")
 print(f"\n📅 Current Date: {datetime.now().strftime('%Y-%m-%d')}")
 print(f"🏀 THE ODDS API 2026 DAILY PULL")
 
-# Check existing data in gamesMaster_2026
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026")
+# Check existing data in games2026
+cursor.execute("SELECT COUNT(*) FROM games2026")
 total_games = cursor.fetchone()[0]
 
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE is_completed = 1")
+cursor.execute("SELECT COUNT(*) FROM games2026 WHERE is_completed = 1")
 completed_games = cursor.fetchone()[0]
 
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE is_completed = 0")
+cursor.execute("SELECT COUNT(*) FROM games2026 WHERE is_completed = 0")
 upcoming_games = cursor.fetchone()[0]
 
 # Check for today's games (odds)
 today = datetime.now().date()
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE game_date = ?", (today,))
+cursor.execute("SELECT COUNT(*) FROM games2026 WHERE game_date = ?", (today,))
 todays_games = cursor.fetchone()[0]
 
 # Check for yesterday's games (scores)
 yesterday = (datetime.now() - timedelta(days=1)).date()
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE game_date = ?", (yesterday,))
+cursor.execute("SELECT COUNT(*) FROM games2026 WHERE game_date = ?", (yesterday,))
 yesterdays_games = cursor.fetchone()[0]
 
-cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE game_date = ? AND is_completed = 1", (yesterday,))
+cursor.execute("SELECT COUNT(*) FROM games2026 WHERE game_date = ? AND is_completed = 1", (yesterday,))
 yesterdays_completed = cursor.fetchone()[0]
 
 print(f"\n📊 Current Database Status:")
@@ -200,8 +200,8 @@ def get_data(endpoint, params=None):
     return data
 
 def get_team_kpid(team_name):
-    """Get kpid for team from theodds_teams table."""
-    cursor.execute("SELECT kpid FROM theodds_teams WHERE teamName = ?", (team_name,))
+    """Get kpid for team from teamsMaster table."""
+    cursor.execute("SELECT kpid FROM teamsMaster WHERE theoddsTeamName = ?", (team_name,))
     result = cursor.fetchone()
     return result[0] if result else None
 
@@ -321,7 +321,7 @@ def main():
             
             # Insert or update record
             cursor.execute("""
-            INSERT OR REPLACE INTO gamesMaster_2026 (
+            INSERT OR REPLACE INTO games2026 (
                 load_datetime, game_id, season, commence_time, game_date,
                 home_team, away_team, home_kpid, away_kpid,
                 fd_home_hhPrice, fd_away_hhPrice, fd_home_spread, fd_home_spreadPrice,
@@ -347,7 +347,7 @@ def main():
             odds_loaded += 1
         
         conn.commit()
-        logging.info(f"📊 Loaded {odds_loaded} odds records into gamesMaster_2026")
+        logging.info(f"📊 Loaded {odds_loaded} odds records into games2026")
         total_records += odds_loaded
         
     except Exception as e:
@@ -390,13 +390,13 @@ def main():
                 pt_total = home_score + away_score
             
             # Check if game exists
-            cursor.execute("SELECT id FROM gamesMaster_2026 WHERE game_id = ?", (game_id,))
+            cursor.execute("SELECT id FROM games2026 WHERE game_id = ?", (game_id,))
             existing = cursor.fetchone()
             
             if existing:
                 # Update existing record
                 cursor.execute("""
-                UPDATE gamesMaster_2026 
+                UPDATE games2026 
                 SET is_completed = 1, home_score = ?, away_score = ?, pt_diff = ?, pt_total = ?
                 WHERE game_id = ?
                 """, (home_score, away_score, pt_diff, pt_total, game_id))
@@ -407,7 +407,7 @@ def main():
                 away_kpid = get_team_kpid(away_team)
                 
                 cursor.execute("""
-                INSERT INTO gamesMaster_2026 (
+                INSERT INTO games2026 (
                     load_datetime, game_id, season, commence_time, game_date,
                     is_completed, home_team, away_team, home_kpid, away_kpid,
                     home_score, away_score, pt_diff, pt_total
@@ -421,7 +421,7 @@ def main():
             scores_loaded += 1
         
         conn.commit()
-        logging.info(f"📊 Loaded {scores_loaded} scores records into gamesMaster_2026")
+        logging.info(f"📊 Loaded {scores_loaded} scores records into games2026")
         total_records += scores_loaded
         
     except Exception as e:
@@ -432,10 +432,10 @@ def main():
     # ==============================================
     
     # Get final counts
-    cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026")
+    cursor.execute("SELECT COUNT(*) FROM games2026")
     total_games = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM gamesMaster_2026 WHERE is_completed = 1")
+    cursor.execute("SELECT COUNT(*) FROM games2026 WHERE is_completed = 1")
     completed_games = cursor.fetchone()[0]
     
     logging.info(f"\n🎉 Daily pull complete!")

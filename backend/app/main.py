@@ -19,7 +19,7 @@ app.add_middleware(
 @app.get("/games/{date}")
 async def get_games_by_date(date: str) -> List[Dict[str, Any]]:
     """Get games for a specific date with FanDuel odds"""
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'future.db')
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'master.db')
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -44,7 +44,7 @@ async def get_games_by_date(date: str) -> List[Dict[str, Any]]:
         fd_overPrice,
         fd_under,
         fd_underPrice
-    FROM gamesMaster_2026 
+    FROM games2026 
     WHERE game_date = ?
     ORDER BY commence_time ASC
     """

@@ -19,7 +19,7 @@ BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 # Define paths relative to backend directory
 DATA_DIR = os.path.join(BACKEND_DIR, "data")
 LOGS_DIR = os.path.join(BACKEND_DIR, "logs")
-DB_PATH = os.path.join(DATA_DIR, "future.db")
+DB_PATH = os.path.join(DATA_DIR, "master.db")
 LOG_PATH = os.path.join(LOGS_DIR, "kenpom_2026_complete.log")
 
 # ==============================================
@@ -48,32 +48,42 @@ BASE_URL = "https://kenpom.com"
 SEASON = 2026
 DELAY_BETWEEN_TEAMS = 0.1
 
-# Generate table names with current date
-current_date = datetime.now().strftime("%m%d%Y")
-RAW_TABLE = f"kenpom_raw_{current_date}"
-CLEANED_TABLE = f"kenpom_cleaned_{current_date}"
+# Table names
+RAW_TABLE = "kenpom_raw_temp"
+CLEANED_TABLE = "kenpom2026"
 
 # ==============================================
 # User Confirmation
 # ==============================================
 
 print(f"\n📅 Current Date: {datetime.now().strftime('%Y-%m-%d')}")
-print(f"📊 Tables to be created: {RAW_TABLE}, {CLEANED_TABLE}")
+print(f"📊 Target table: {CLEANED_TABLE}")
 
-# Check if tables already exist
+# Check if cleaned table exists and get last update time
 conn_check = sqlite3.connect(DB_PATH)
 cursor_check = conn_check.cursor()
 
-cursor_check.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN (?, ?)", (RAW_TABLE, CLEANED_TABLE))
-existing_tables = cursor_check.fetchall()
-conn_check.close()
+cursor_check.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (CLEANED_TABLE,))
+existing_table = cursor_check.fetchone()
 
-if existing_tables:
-    print(f"⚠️  Warning: The following tables already exist and will be replaced:")
-    for (table_name,) in existing_tables:
-        print(f"   - {table_name}")
+if existing_table:
+    # Try to get last update time from loaddatetime field
+    try:
+        cursor_check.execute(f"SELECT MAX(loaddatetime) FROM {CLEANED_TABLE}")
+        last_update = cursor_check.fetchone()[0]
+        if last_update:
+            print(f"⚠️  Warning: Table {CLEANED_TABLE} exists and will be rewritten")
+            print(f"📅 Last updated: {last_update}")
+        else:
+            print(f"⚠️  Warning: Table {CLEANED_TABLE} exists and will be rewritten")
+            print(f"📅 Last updated: Unknown")
+    except:
+        print(f"⚠️  Warning: Table {CLEANED_TABLE} exists and will be rewritten")
+        print(f"📅 Last updated: Unknown")
 else:
-    print("✅ No existing tables found for today's date")
+    print("✅ No existing table found - will create new table")
+
+conn_check.close()
 
 response = input("\nDo you want to continue? (y/n): ").lower().strip()
 if response != 'y':
@@ -108,38 +118,13 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-# Clean up old tables (older than 7 days)
-logging.info("🧹 Cleaning up old tables...")
-cutoff_date = datetime.now() - timedelta(days=7)
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'kenpom_raw_%' OR name LIKE 'kenpom_cleaned_%'")
-existing_tables = cursor.fetchall()
-
-cleaned_count = 0
-for (table_name,) in existing_tables:
-    try:
-        if 'kenpom_raw_' in table_name:
-            date_str = table_name.replace("kenpom_raw_", "")
-        elif 'kenpom_cleaned_' in table_name:
-            date_str = table_name.replace("kenpom_cleaned_", "")
-        else:
-            continue
-            
-        table_date = datetime.strptime(date_str, "%m%d%Y")
-        if table_date < cutoff_date:
-            cursor.execute(f"DROP TABLE {table_name}")
-            cleaned_count += 1
-            logging.info(f"  Dropped old table: {table_name}")
-    except ValueError:
-        continue
-
-logging.info(f"✅ Cleaned up {cleaned_count} old tables")
-
-# Drop today's tables if they exist (replace)
+# Drop temp and target tables if they exist
 cursor.execute(f"DROP TABLE IF EXISTS {RAW_TABLE}")
 cursor.execute(f"DROP TABLE IF EXISTS {CLEANED_TABLE}")
+logging.info(f"Dropped existing tables if present")
 
-# Create today's raw table
-logging.info(f"📊 Creating table: {RAW_TABLE}")
+# Create temp raw table
+logging.info(f"📊 Creating temp table: {RAW_TABLE}")
 cursor.execute(f"""
 CREATE TABLE {RAW_TABLE} (
     kpid INTEGER PRIMARY KEY,
@@ -170,6 +155,8 @@ CREATE TABLE {RAW_TABLE} (
     oppThreesRate REAL
 );
 """)
+conn.commit()
+logging.info("✅ STEP 1 COMPLETE: Database setup finished")
 conn.commit()
 logging.info("✅ STEP 1 COMPLETE: Database setup finished")
 
@@ -314,12 +301,13 @@ logging.info("🔄 STEP 4: DATA NORMALIZATION")
 cursor.execute(f"PRAGMA table_info({RAW_TABLE})")
 columns = cursor.fetchall()
 
-# Create target table with same structure
+# Create target table with loaddatetime field
 create_sql = f"CREATE TABLE {CLEANED_TABLE} (\n"
 for col in columns:
     col_name, col_type = col[1], col[2]
     if col_name == 'kpid':
         create_sql += f"    {col_name} {col_type} PRIMARY KEY,\n"
+        create_sql += f"    loaddatetime TEXT,\n"  # Add loaddatetime after kpid
     else:
         create_sql += f"    {col_name} {col_type},\n"
 create_sql = create_sql.rstrip(',\n') + "\n);"
@@ -374,6 +362,8 @@ for field, values in stat_data.items():
             logging.warning(f"⚠️ Zero std dev for {field}, using std=1.0")
 
 logging.info("📊 Inserting normalized records...")
+current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
 # Insert normalized records
 for i, record in enumerate(records, 1):
     if i % 50 == 0 or i == len(records):
@@ -398,12 +388,20 @@ for i, record in enumerate(records, 1):
                 
                 new_record[col_idx] = z_score
     
-    # Insert record with kpid as primary key
+    # Insert record with loaddatetime
+    new_record.insert(1, current_datetime)  # Insert loaddatetime after kpid
+    col_names_with_datetime = col_names[:1] + ['loaddatetime'] + col_names[1:]
     placeholders = ",".join(["?"] * len(new_record))
-    insert_sql = f"INSERT INTO {CLEANED_TABLE} ({','.join(col_names)}) VALUES ({placeholders})"
+    insert_sql = f"INSERT INTO {CLEANED_TABLE} ({','.join(col_names_with_datetime)}) VALUES ({placeholders})"
     cursor.execute(insert_sql, new_record)
 
 conn.commit()
+
+# Drop the temporary raw table
+logging.info(f"🗑️ Dropping temporary raw table: {RAW_TABLE}")
+cursor.execute(f"DROP TABLE {RAW_TABLE}")
+conn.commit()
+logging.info("✅ Temporary raw table dropped")
 
 # ==============================================
 # Final Verification & Summary
@@ -424,8 +422,8 @@ logging.info(f"  📊 Raw records processed: {len(records)}")
 logging.info(f"  📊 Cleaned records created: {final_count}")
 logging.info(f"  📊 Data validation complete")
 logging.info(f"  📊 Average normalized stats: Off={avg_stats[0]:.3f}, Def={avg_stats[1]:.3f}")
-logging.info(f"  📁 Raw table: {RAW_TABLE}")
-logging.info(f"  📁 Cleaned table: {CLEANED_TABLE}")
+logging.info(f"  📁 Final table: {CLEANED_TABLE}")
+logging.info(f"  📅 Load datetime: {current_datetime}")
 
 if final_count == len(records):
     logging.info("✅ SUCCESS: All records processed successfully!")
