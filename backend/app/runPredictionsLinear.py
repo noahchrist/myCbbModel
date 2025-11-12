@@ -94,16 +94,38 @@ def run_model(model_type, target_table, total_bias=0):
     return df_target
 
 def display_all_predictions(df_with_spread, df_with_total):
-    """Display all predictions sorted by game time with betting picks"""
+    """Display all predictions sorted by biggest edge with betting picks"""
     print(f"\n🎯 === ALL GAME PREDICTIONS ===")
     
-    # Sort by commence_time
-    df_combined = df_with_spread.sort_values('commence_time')
+    # Calculate edges for each game
+    game_edges = []
     
-    for _, row in df_combined.iterrows():
+    for _, row in df_with_spread.iterrows():
         # Find corresponding total prediction
         total_row = df_with_total[df_with_total['game_id'] == row['game_id']].iloc[0]
         
+        spread_edge = 0
+        total_edge = 0
+        
+        # Calculate spread edge
+        if pd.notna(row['fd_home_spread']):
+            pred_spread = row['pred_pt_diff']
+            home_spread = row['fd_home_spread']
+            spread_edge = abs(pred_spread + home_spread)
+        
+        # Calculate total edge
+        if pd.notna(row['fd_over']):
+            pred_total = total_row['pred_pt_total']
+            betting_total = row['fd_over']
+            total_edge = abs(pred_total - betting_total)
+        
+        max_edge = max(spread_edge, total_edge)
+        game_edges.append((max_edge, row, total_row))
+    
+    # Sort by biggest edge
+    game_edges.sort(key=lambda x: x[0], reverse=True)
+    
+    for max_edge, row, total_row in game_edges:
         print(f"\n{row['home_team']} vs {row['away_team']}")
         
         # Spread prediction and pick
@@ -116,11 +138,15 @@ def display_all_predictions(df_with_spread, df_with_total):
         # Spread pick vs betting line
         if pd.notna(row['fd_home_spread']):
             home_spread = row['fd_home_spread']
-            cover_margin = pred_spread + home_spread  # Key formula
-            if cover_margin > 0:  # Home team covers
+            cover_margin = pred_spread + home_spread
+            if cover_margin > 0:
                 print(f"  Pick: {row['home_team']} {home_spread:+.1f}")
-            else:  # Away team covers
+            else:
                 print(f"  Pick: {row['away_team']} {-home_spread:+.1f}")
+            
+            # Spread edge calculation
+            spread_edge = abs(cover_margin)
+            print(f"  Spread edge: {spread_edge:.1f} points")
         
         # Total prediction and pick
         pred_total = total_row['pred_pt_total']
@@ -128,10 +154,15 @@ def display_all_predictions(df_with_spread, df_with_total):
         
         # Total pick vs betting line
         if pd.notna(row['fd_over']):
-            if pred_total > row['fd_over']:
-                print(f"  Pick: Over {row['fd_over']:.1f}")
+            betting_total = row['fd_over']
+            if pred_total > betting_total:
+                print(f"  Pick: Over {betting_total:.1f}")
             else:
-                print(f"  Pick: Under {row['fd_over']:.1f}")
+                print(f"  Pick: Under {betting_total:.1f}")
+            
+            # Total edge calculation
+            total_edge = abs(pred_total - betting_total)
+            print(f"  Total edge: {total_edge:.1f} points")
 
 # === MAIN ===
 def main():
@@ -191,7 +222,7 @@ def main():
     df_spread = run_model("spread", target_table)
     df_total = run_model("total", target_table, total_bias)
     
-    # Display all predictions with picks
+    # Display all predictions with picks (sorted by biggest edge)
     display_all_predictions(df_spread, df_total)
     
     print("\n🎯 Predictions complete and saved to master.db!")

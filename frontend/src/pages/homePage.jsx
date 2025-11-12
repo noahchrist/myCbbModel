@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
 const HomePage = () => {
   const [activeSection, setActiveSection] = useState('Home');
   const [isMobile, setIsMobile] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '', displayName: '' });
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -36,9 +42,10 @@ const HomePage = () => {
     try {
       const response = await fetch(`http://localhost:8000/games/${date}`);
       const data = await response.json();
-      setGames(data);
+      setGames(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching games:', error);
+      setGames([]);
     } finally {
       setLoading(false);
     }
@@ -92,6 +99,120 @@ const HomePage = () => {
     };
   };
 
+  const handleLoginClick = () => {
+    setShowLoginModal(true);
+    setIsSignUp(false);
+  };
+
+  const handleCloseModal = () => {
+    setShowLoginModal(false);
+    setLoginForm({ email: '', password: '', displayName: '' });
+  };
+
+  const signUp = async (email, password, displayName) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: displayName,
+        },
+      },
+    });
+
+    if (error) throw error;
+    
+    // Sync new user to local database with custom display name
+    if (data.user) {
+      try {
+        console.log('Attempting to sync new user with displayName:', displayName);
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Session:', session);
+        if (session?.access_token) {
+          const response = await fetch('http://localhost:8000/me', {
+            method: 'POST',
+            headers: { 
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ displayName })
+          });
+          console.log('Sync response:', await response.json());
+        }
+      } catch (error) {
+        console.error('Failed to sync new user:', error);
+      }
+    }
+    
+    return data.user;
+  };
+
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+    return data.user;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  const handleInputChange = (e) => {
+    setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    
+    try {
+      if (isSignUp) {
+        const user = await signUp(loginForm.email, loginForm.password, loginForm.displayName);
+        console.log('User signed up:', user);
+        alert('Check your email for verification!');
+      } else {
+        const user = await signIn(loginForm.email, loginForm.password);
+        console.log('User signed in:', user);
+        setUser(user);
+        
+        // Sync user to local database on sign in
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            await fetch('http://localhost:8000/me', {
+              headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+          }
+        } catch (error) {
+          console.error('Failed to sync user on login:', error);
+        }
+        
+        setActiveSection('My Models');
+        setTimeout(() => window.scrollTo(0, 0), 100);
+      }
+      handleCloseModal();
+    } catch (error) {
+      console.error('Auth error:', error);
+      alert(error.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   useEffect(() => {
     if (activeSection === 'Home') {
       fetchGames(currentDate);
@@ -107,6 +228,22 @@ const HomePage = () => {
     
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  useEffect(() => {
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+
 
   return (
     <div className="homepage">
@@ -135,12 +272,21 @@ const HomePage = () => {
         >
           Community
         </button>
-        <button 
-          className={`nav-button ${activeSection === 'Login' ? 'active' : ''}`}
-          onClick={() => setActiveSection('Login')}
-        >
-          Login
-        </button>
+        {user ? (
+          <button 
+            className={`nav-button ${activeSection === 'Account' ? 'active' : ''}`}
+            onClick={() => setActiveSection('Account')}
+          >
+            Account
+          </button>
+        ) : (
+          <button 
+            className="nav-button"
+            onClick={handleLoginClick}
+          >
+            Login
+          </button>
+        )}
       </nav>
 
       {/* Main Content */}
@@ -260,12 +406,75 @@ const HomePage = () => {
           </div>
         )}
         
-        {activeSection === 'Login' && (
-          <div className="login-content">
-            <h2>Login section coming soon</h2>
+        {activeSection === 'Account' && (
+          <div className="account-content">
+            <h2>Welcome, {user?.user_metadata?.display_name || user?.email}</h2>
+            <p>Profile page coming soon</p>
+            <button onClick={async () => {
+              await handleLogout();
+              setActiveSection('Home');
+            }}>Logout</button>
           </div>
         )}
+        
       </main>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={handleCloseModal}>×</button>
+            <h2>{isSignUp ? 'Create Account' : 'Login'}</h2>
+            <form onSubmit={handleSubmit}>
+              {isSignUp && (
+                <div className="form-row">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    name="displayName"
+                    value={loginForm.displayName}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              )}
+              <div className="form-row">
+                <label>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={loginForm.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <label>Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={loginForm.password}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <button type="submit" className="submit-button" disabled={authLoading}>
+                {authLoading ? 'Loading...' : (isSignUp ? 'Create Account' : 'Login')}
+              </button>
+            </form>
+            <p className="toggle-auth">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+              <button 
+                type="button" 
+                className="link-button"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp ? 'Login' : 'Create Account'}
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
