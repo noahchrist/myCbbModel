@@ -4,6 +4,10 @@ import sqlite3
 import os
 import random
 from datetime import datetime
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+import joblib
 
 class ModelCreate(BaseModel):
     modelName: str
@@ -64,43 +68,100 @@ async def get_user_models(user_id: str):
     return {"models": models}
 
 async def create_model(request: ModelCreate, user_id: str):
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    while True:
-        model_seed = random.randint(100, 999)
-        cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
-        if not cursor.fetchone():
-            break
-    
-    cursor.execute(
-        """INSERT INTO modelDetails 
-           (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, 
-            weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
-            weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (user_id, request.modelName, datetime.now().isoformat(), model_seed, 
-         request.bettingStyle, request.tenDigit,
-         request.weights['weightGenOff'], request.weights['weightGenDef'], 
-         request.weights['weightPace'], request.weights['weightThrees'], 
-         request.weights['weightFts'], request.weights['weightPerDef'], 
-         request.weights['weightIntDef'], request.weights['weightBoards'], 
-         request.weights['weightPlaymaking'], request.weights['weightIntangibles'])
-    )
-    
-    cursor.execute("UPDATE modelNames SET userId = ? WHERE modelName = ?", (user_id, request.modelName))
-    
-    for rejected_name in request.rejectedNames:
+    try:
+        print(f"Creating model for user: {user_id}")
+        print(f"Request data: {request.dict()}")
+        
+        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check user role and model count
+        cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        user_role = cursor.fetchone()
+        is_admin = user_role and user_role[0] == 'admin'
+        print(f"User role: {user_role}, is_admin: {is_admin}")
+        
+        if not is_admin:
+            cursor.execute("SELECT COUNT(*) FROM modelDetails WHERE userId = ?", (user_id,))
+            model_count = cursor.fetchone()[0]
+            print(f"Current model count: {model_count}")
+            if model_count >= 2:
+                conn.close()
+                raise HTTPException(status_code=400, detail="You are only allowed 2 models, either delete or edit an existing model")
+        
+        # Generate unique model seed
+        while True:
+            model_seed = random.randint(100, 999)
+            cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
+            if not cursor.fetchone():
+                break
+        print(f"Generated model seed: {model_seed}")
+        
+        # Load training data and fit model
+        print("Loading training data...")
+        df_train = pd.read_sql("SELECT * FROM setAlpha", conn)
+        print(f"Training data shape: {df_train.shape}")
+        
+        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season"]
+        feature_cols = [c for c in df_train.columns if c not in drop_cols]
+        print(f"Feature columns: {len(feature_cols)}")
+        
+        X = df_train[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        y = pd.to_numeric(df_train["pt_diff"], errors="coerce").fillna(0)
+        print(f"X shape: {X.shape}, y shape: {y.shape}")
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=model_seed)
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        print("Model fitted successfully")
+        
+        # Save model to joblib file
+        model_fits_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'modelFits'))
+        model_filename = f"model_{model_seed}.joblib"
+        model_path = os.path.join(model_fits_dir, model_filename)
+        joblib.dump(model, model_path)
+        print(f"Model saved to: {model_path}")
+        
+        # Insert model details with path
+        print("Inserting model details...")
         cursor.execute(
-            "UPDATE modelNames SET timesRejected = timesRejected + 1 WHERE modelName = ?", 
-            (rejected_name,)
+            """INSERT INTO modelDetails 
+               (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, modelPath,
+                weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
+                weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, request.modelName, datetime.now().isoformat(), model_seed, 
+             request.bettingStyle, request.tenDigit, model_path,
+             request.weights['weightGenOff'], request.weights['weightGenDef'], 
+             request.weights['weightPace'], request.weights['weightThrees'], 
+             request.weights['weightFts'], request.weights['weightPerDef'], 
+             request.weights['weightIntDef'], request.weights['weightBoards'], 
+             request.weights['weightPlaymaking'], request.weights['weightIntangibles'])
         )
-    
-    conn.commit()
-    conn.close()
-    
-    return {"message": "Model created successfully", "modelSeed": model_seed}
+        
+        cursor.execute("UPDATE modelNames SET userId = ? WHERE modelName = ?", (user_id, request.modelName))
+        
+        for rejected_name in request.rejectedNames:
+            cursor.execute(
+                "UPDATE modelNames SET timesRejected = timesRejected + 1 WHERE modelName = ?", 
+                (rejected_name,)
+            )
+        
+        conn.commit()
+        conn.close()
+        print("Model created successfully")
+        
+        return {"message": "Model created successfully", "modelSeed": model_seed}
+        
+    except Exception as e:
+        print(f"Error creating model: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        if 'conn' in locals():
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error creating model: {str(e)}")
 
 async def get_community_models():
     db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
@@ -146,13 +207,21 @@ async def delete_model(model_id: int, user_id: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    cursor.execute("SELECT modelName FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+    cursor.execute("SELECT modelName, modelPath FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
     result = cursor.fetchone()
     if not result:
         conn.close()
         raise HTTPException(status_code=404, detail="Model not found")
     
-    model_name = result[0]
+    model_name, model_path = result
+    
+    # Delete joblib file if it exists
+    if model_path and os.path.exists(model_path):
+        try:
+            os.remove(model_path)
+            print(f"Deleted model file: {model_path}")
+        except Exception as e:
+            print(f"Error deleting model file {model_path}: {e}")
     
     cursor.execute("DELETE FROM modelPredictions WHERE modelId = ?", (model_id,))
     cursor.execute("DELETE FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))

@@ -37,6 +37,7 @@ const HomePage = () => {
   const [showModelDetailModal, setShowModelDetailModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isCreatingModel, setIsCreatingModel] = useState(false);
   const [userModels, setUserModels] = useState([]);
   const [communityModels, setCommunityModels] = useState([]);
 
@@ -323,6 +324,7 @@ const HomePage = () => {
 
   const handleFinalizeModel = async () => {
     try {
+      setIsCreatingModel(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
@@ -362,13 +364,15 @@ const HomePage = () => {
         setSelectedModelName('');
         setSelectedBettingStyle('');
         setSliders(prev => prev.map(slider => ({ ...slider, value: 5 })));
-        fetchUserModels(); // Refresh models list
+        fetchUserModels();
       } else {
         alert('Error creating model');
       }
     } catch (error) {
       console.error('Error creating model:', error);
       alert('Error creating model');
+    } finally {
+      setIsCreatingModel(false);
     }
   };
 
@@ -669,11 +673,37 @@ const HomePage = () => {
         
       </main>
 
+      {/* Loading Overlay */}
+      {isCreatingModel && (
+        <div className="modal-overlay" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)', zIndex: 2000 }}>
+          <div style={{ color: 'white', fontSize: '1.5rem', textAlign: 'center' }}>
+            <div style={{ marginBottom: '1rem' }}>Creating Model...</div>
+            <div style={{ 
+              border: '4px solid #f3f3f3',
+              borderTop: '4px solid #00ff00',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto'
+            }}></div>
+          </div>
+        </div>
+      )}
+
       {/* Model Creation Modal */}
       {showModelModal && (
-        <div className="modal-overlay" onClick={() => setShowModelModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          setShowModelModal(false);
+          setSelectedModelName('');
+          setSelectedBettingStyle('');
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowModelModal(false)}>×</button>
+            <button className="modal-close" onClick={() => {
+              setShowModelModal(false);
+              setSelectedModelName('');
+              setSelectedBettingStyle('');
+            }}>×</button>
             <h2>Create New Model</h2>
             
             <div className="model-settings">
@@ -719,10 +749,14 @@ const HomePage = () => {
             
             <button 
               className="finalize-button"
-              disabled={!selectedModelName || !selectedBettingStyle}
+              disabled={!selectedModelName || !selectedBettingStyle || isCreatingModel}
               onClick={handleFinalizeModel}
+              style={{
+                opacity: (!selectedModelName || !selectedBettingStyle || isCreatingModel) ? 0.5 : 1,
+                cursor: (!selectedModelName || !selectedBettingStyle || isCreatingModel) ? 'not-allowed' : 'pointer'
+              }}
             >
-              Finalize Model
+              {isCreatingModel ? 'Creating Model...' : 'Finalize Model'}
             </button>
           </div>
         </div>

@@ -4,6 +4,10 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 
+import sys
+print("USING PYTHON:", sys.executable)
+
+
 from .auth import get_current_user, sync_user_in_local_db, UserCreate
 from .games import get_games_by_date
 from .models import (
