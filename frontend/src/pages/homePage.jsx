@@ -30,6 +30,54 @@ const HomePage = () => {
     { id: 9, category: 'Playmaking', value: 5 },
     { id: 10, category: 'Intangibles', value: 5 }
   ]);
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [modelNames, setModelNames] = useState([]);
+  const [selectedModelName, setSelectedModelName] = useState('');
+  const [selectedBettingStyle, setSelectedBettingStyle] = useState('');
+  const [showModelDetailModal, setShowModelDetailModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userModels, setUserModels] = useState([]);
+  const [communityModels, setCommunityModels] = useState([]);
+
+  const getModelColors = (tenDigit) => {
+    if (!tenDigit) return { primary: '#333', secondary: '#666' };
+    const digits = tenDigit.toString().padStart(10, '0');
+    const first6 = digits.slice(0, 6);
+    const last6 = digits.slice(-6);
+    
+    // Ensure colors have enough contrast by adjusting brightness
+    const adjustColor = (hex) => {
+      const num = parseInt(hex, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      
+      // If too light, darken it; if too dark, lighten it
+      if (brightness > 200) {
+        return `#${Math.max(0, r - 80).toString(16).padStart(2, '0')}${Math.max(0, g - 80).toString(16).padStart(2, '0')}${Math.max(0, b - 80).toString(16).padStart(2, '0')}`;
+      } else if (brightness < 80) {
+        return `#${Math.min(255, r + 100).toString(16).padStart(2, '0')}${Math.min(255, g + 100).toString(16).padStart(2, '0')}${Math.min(255, b + 100).toString(16).padStart(2, '0')}`;
+      }
+      return `#${hex}`;
+    };
+    
+    return {
+      primary: adjustColor(first6),
+      secondary: adjustColor(last6)
+    };
+  };
+
+  const getModelStyle = (tenDigit) => {
+    const colors = getModelColors(tenDigit);
+    return {
+      background: `linear-gradient(135deg, ${colors.primary}20, ${colors.secondary}20)`,
+      border: `2px solid ${colors.primary}`,
+      boxShadow: `0 4px 8px ${colors.secondary}30`,
+      colors
+    };
+  };
 
   const handleSliderChange = (id, newValue) => {
     setSliders(prev => prev.map(slider => 
@@ -213,6 +261,135 @@ const HomePage = () => {
     }
   };
 
+  const fetchModelNames = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/model-names');
+      const data = await response.json();
+      setModelNames(data.names);
+    } catch (error) {
+      console.error('Error fetching model names:', error);
+    }
+  };
+
+  const fetchUserModels = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('http://localhost:8000/user-models', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const data = await response.json();
+      setUserModels(data.models || []);
+    } catch (error) {
+      console.error('Error fetching user models:', error);
+    }
+  };
+
+  const fetchCommunityModels = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/community-models');
+      const data = await response.json();
+      setCommunityModels(data.models || []);
+    } catch (error) {
+      console.error('Error fetching community models:', error);
+    }
+  };
+
+  const handleDeleteModel = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`http://localhost:8000/delete-model/${selectedModel.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (response.ok) {
+        alert('Model deleted successfully!');
+        setShowDeleteConfirm(false);
+        setShowModelDetailModal(false);
+        fetchUserModels();
+        fetchCommunityModels();
+      } else {
+        alert('Error deleting model');
+      }
+    } catch (error) {
+      console.error('Error deleting model:', error);
+      alert('Error deleting model');
+    }
+  };
+
+  const handleFinalizeModel = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const tenDigit = sliders.map(s => s.value - 1).join('');
+      
+      const modelData = {
+        modelName: selectedModelName,
+        bettingStyle: selectedBettingStyle,
+        tenDigit: parseInt(tenDigit),
+        weights: {
+          weightGenOff: sliders[0].value - 1,
+          weightGenDef: sliders[1].value - 1,
+          weightPace: sliders[2].value - 1,
+          weightThrees: sliders[3].value - 1,
+          weightFts: sliders[4].value - 1,
+          weightPerDef: sliders[5].value - 1,
+          weightIntDef: sliders[6].value - 1,
+          weightBoards: sliders[7].value - 1,
+          weightPlaymaking: sliders[8].value - 1,
+          weightIntangibles: sliders[9].value - 1
+        },
+        rejectedNames: modelNames.filter(name => name !== selectedModelName)
+      };
+
+      const response = await fetch('http://localhost:8000/create-model', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(modelData)
+      });
+
+      if (response.ok) {
+        alert('Model created successfully!');
+        setShowModelModal(false);
+        setSelectedModelName('');
+        setSelectedBettingStyle('');
+        setSliders(prev => prev.map(slider => ({ ...slider, value: 5 })));
+        fetchUserModels(); // Refresh models list
+      } else {
+        alert('Error creating model');
+      }
+    } catch (error) {
+      console.error('Error creating model:', error);
+      alert('Error creating model');
+    }
+  };
+
+  useEffect(() => {
+    if (showModelModal) {
+      fetchModelNames();
+    }
+  }, [showModelModal]);
+
+  useEffect(() => {
+    if (activeSection === 'My Models' && user) {
+      fetchUserModels();
+    }
+  }, [activeSection, user]);
+
+  useEffect(() => {
+    if (activeSection === 'Community') {
+      fetchCommunityModels();
+    }
+  }, [activeSection]);
+
   useEffect(() => {
     if (activeSection === 'Home') {
       fetchGames(currentDate);
@@ -356,6 +533,43 @@ const HomePage = () => {
         
         {activeSection === 'My Models' && (
           <div className="sliders-container">
+            {/* User Models Display */}
+            <div className="user-models-section">
+              {userModels.length === 0 ? (
+                <div className="no-models-message">
+                  You have no models, create one below
+                </div>
+              ) : (
+                <div className="models-grid">
+                  {userModels.map(model => {
+                    const modelStyle = getModelStyle(model.tenDigit);
+                    return (
+                      <div key={model.id} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); }}>
+                        <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', fontWeight: 'bold' }}>{model.modelName}</h3>
+                        <div className="model-stats">
+                          <div className="stat-row">
+                            <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Featured pick:</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.featuredPick || 'None'}</span>
+                          </div>
+                          <div className="stat-row">
+                            <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Overall record:</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.wins || 0}-{model.losses || 0}</span>
+                          </div>
+                          <div className="stat-row">
+                            <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Units won:</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.unitsWon || 0}</span>
+                          </div>
+                          <div className="stat-row">
+                            <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>ROI:</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.roi || 0}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             {sliders.map(slider => (
               <div key={slider.id} className="slider-row">
                 {isMobile ? (
@@ -366,7 +580,7 @@ const HomePage = () => {
                     <div className="slider-wrapper">
                       <input
                         type="range"
-                        min="0"
+                        min="1"
                         max="10"
                         step="1"
                         value={slider.value}
@@ -381,7 +595,7 @@ const HomePage = () => {
                     <div className="slider-wrapper">
                       <input
                         type="range"
-                        min="0"
+                        min="1"
                         max="10"
                         step="1"
                         value={slider.value}
@@ -395,14 +609,50 @@ const HomePage = () => {
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
-              <button>Train Model</button>
+              <button onClick={() => setShowModelModal(true)}>Train New Model</button>
             </div>
           </div>
         )}
         
         {activeSection === 'Community' && (
           <div className="community-content">
-            <h2>Community section coming soon</h2>
+            <h2>Community Models</h2>
+            {communityModels.length === 0 ? (
+              <div>Loading community models...</div>
+            ) : (
+              <div className="models-grid">
+                {communityModels.map((model, index) => {
+                  const modelStyle = getModelStyle(model.tenDigit);
+                  return (
+                    <div key={index} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); }}>
+                      <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', fontWeight: 'bold' }}>{model.modelName}</h3>
+                      <div className="model-stats">
+                        <div className="stat-row">
+                          <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Created by:</span>
+                          <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.userName}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Style:</span>
+                          <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.bettingStyle}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Record:</span>
+                          <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.wins}-{model.losses}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Units won:</span>
+                          <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.unitsWon}</span>
+                        </div>
+                        <div className="stat-row">
+                          <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>ROI:</span>
+                          <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.roi}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
         
@@ -418,6 +668,102 @@ const HomePage = () => {
         )}
         
       </main>
+
+      {/* Model Creation Modal */}
+      {showModelModal && (
+        <div className="modal-overlay" onClick={() => setShowModelModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowModelModal(false)}>×</button>
+            <h2>Create New Model</h2>
+            
+            <div className="model-settings">
+              <h3>Current Slider Settings:</h3>
+              {sliders.map(slider => (
+                <div key={slider.id} className="setting-row">
+                  <span>{slider.category}: {slider.value}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="model-names">
+              <h3>Select Model Name:</h3>
+              {modelNames.map((name, index) => (
+                <label key={index} className="radio-option">
+                  <input
+                    type="radio"
+                    name="modelName"
+                    value={name}
+                    checked={selectedModelName === name}
+                    onChange={(e) => setSelectedModelName(e.target.value)}
+                  />
+                  {name}
+                </label>
+              ))}
+            </div>
+            
+            <div className="betting-styles">
+              <h3>Select Betting Style:</h3>
+              {['Aggressive', 'Moderate', 'Reserved'].map(style => (
+                <label key={style} className="radio-option">
+                  <input
+                    type="radio"
+                    name="bettingStyle"
+                    value={style}
+                    checked={selectedBettingStyle === style}
+                    onChange={(e) => setSelectedBettingStyle(e.target.value)}
+                  />
+                  {style}
+                </label>
+              ))}
+            </div>
+            
+            <button 
+              className="finalize-button"
+              disabled={!selectedModelName || !selectedBettingStyle}
+              onClick={handleFinalizeModel}
+            >
+              Finalize Model
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Model Detail Modal */}
+      {showModelDetailModal && (
+        <div className="modal-overlay" onClick={() => setShowModelDetailModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowModelDetailModal(false)}>×</button>
+            <h2>{selectedModel?.modelName}</h2>
+            <p>Detailed stats and history coming soon...</p>
+            <button 
+              className="delete-button"
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{ backgroundColor: '#ff4444', color: 'white', marginTop: '20px' }}
+            >
+              Delete Model
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Confirm Delete</h2>
+            <p>Are you sure you want to delete "{selectedModel?.modelName}"? This action cannot be undone.</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '20px' }}>
+              <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button 
+                onClick={handleDeleteModel}
+                style={{ backgroundColor: '#ff4444', color: 'white' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Login Modal */}
       {showLoginModal && (

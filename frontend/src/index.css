@@ -66,7 +66,7 @@ button {
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #00ff00;
 }
 button:focus,
 button:focus-visible {
@@ -614,6 +614,163 @@ button:focus-visible {
 
 .link-button:hover {
   color: #00cc00;
+}
+
+.model-settings {
+  margin: 1rem 0;
+}
+
+.setting-row {
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.model-names, .betting-styles {
+  margin: 1rem 0;
+}
+
+.radio-option {
+  display: block;
+  margin: 0.5rem 0;
+  cursor: pointer;
+}
+
+.radio-option input {
+  margin-right: 0.5rem;
+}
+
+.finalize-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #00ff00;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 4px;
+  font-family: 'Syne Mono', monospace;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.finalize-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.finalize-button:hover:not(:disabled) {
+  background: #00cc00;
+}
+
+.user-models-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.no-models-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.model-box {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.model-name {
+  margin: 0 0 1rem 0;
+  color: #000;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.model-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  color: #000;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.user-models-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.no-models-message {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.model-box {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.model-name {
+  margin: 0 0 1rem 0;
+  color: #000;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.model-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  color: #000;
+  font-weight: bold;
+  font-size: 0.9rem;
 }
 
 /* User Menu Styles */
