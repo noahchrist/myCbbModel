@@ -14,7 +14,7 @@ MASTER_DB_PATH = os.path.join(BACKEND_DIR, "data", "master.db")
 TRAIN_TABLE = "setAlpha"
 
 # === CORE TRAINING + PREDICTION ===
-def run_model(model_type, target_table, total_bias=0):
+def run_model(model_type, target_table, game_date=None, total_bias=0):
     """Train linear regression model, evaluate, then predict using targetSet."""
     if model_type == "spread":
         TARGET = "pt_diff"
@@ -53,7 +53,10 @@ def run_model(model_type, target_table, total_bias=0):
     print(f"RMSE: {rmse:.4f}")
 
     # --- Load target set ---
-    df_target = pd.read_sql(f"SELECT * FROM {target_table}", conn)
+    if game_date and target_table == "setTarget2026":
+        df_target = pd.read_sql("SELECT * FROM setTarget2026 WHERE game_date = ?", conn, params=(game_date,))
+    else:
+        df_target = pd.read_sql(f"SELECT * FROM {target_table}", conn)
 
     # Match feature columns (fill missing with 0)
     for col in feature_cols:
@@ -77,14 +80,14 @@ def run_model(model_type, target_table, total_bias=0):
     if model_type == "spread":
         out_table = f"predictionsLinearSpread_{timestamp}"
         df_target[[
-            "game_id", "commence_time", "season", "home_team", "away_team",
+            "game_id", "season", "home_team", "away_team",
             f"pred_{TARGET}"
         ]].to_sql(out_table, conn, if_exists="replace", index=False)
     else:
         out_table = f"predictionsLinearTotal_{timestamp}"
         df_target["userBias"] = total_bias
         df_target[[
-            "game_id", "commence_time", "season", "home_team", "away_team",
+            "game_id", "season", "home_team", "away_team",
             f"pred_{TARGET}", "userBias"
         ]].to_sql(out_table, conn, if_exists="replace", index=False)
 
@@ -99,33 +102,44 @@ def display_all_predictions(df_with_spread, df_with_total):
     
     # Calculate edges for each game
     game_edges = []
+    conn = sqlite3.connect(MASTER_DB_PATH)
     
     for _, row in df_with_spread.iterrows():
         # Find corresponding total prediction
         total_row = df_with_total[df_with_total['game_id'] == row['game_id']].iloc[0]
         
+        # Get betting odds from games2026
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT fd_home_spread, fd_over FROM games2026 
+        WHERE game_id = ?
+        """, (row['game_id'],))
+        odds_result = cursor.fetchone()
+        
         spread_edge = 0
         total_edge = 0
         
         # Calculate spread edge
-        if pd.notna(row['fd_home_spread']):
+        if odds_result and pd.notna(odds_result[0]):
             pred_spread = row['pred_pt_diff']
-            home_spread = row['fd_home_spread']
+            home_spread = odds_result[0]
             spread_edge = abs(pred_spread + home_spread)
         
         # Calculate total edge
-        if pd.notna(row['fd_over']):
+        if odds_result and pd.notna(odds_result[1]):
             pred_total = total_row['pred_pt_total']
-            betting_total = row['fd_over']
+            betting_total = odds_result[1]
             total_edge = abs(pred_total - betting_total)
         
         max_edge = max(spread_edge, total_edge)
-        game_edges.append((max_edge, row, total_row))
+        game_edges.append((max_edge, row, total_row, odds_result))
+    
+    conn.close()
     
     # Sort by biggest edge
     game_edges.sort(key=lambda x: x[0], reverse=True)
     
-    for max_edge, row, total_row in game_edges:
+    for max_edge, row, total_row, odds_result in game_edges:
         print(f"\n{row['home_team']} vs {row['away_team']}")
         
         # Spread prediction and pick
@@ -136,8 +150,8 @@ def display_all_predictions(df_with_spread, df_with_total):
             print(f"  Prediction: {row['away_team']} by {abs(pred_spread):.1f}")
         
         # Spread pick vs betting line
-        if pd.notna(row['fd_home_spread']):
-            home_spread = row['fd_home_spread']
+        if odds_result and pd.notna(odds_result[0]):
+            home_spread = odds_result[0]
             cover_margin = pred_spread + home_spread
             if cover_margin > 0:
                 print(f"  Pick: {row['home_team']} {home_spread:+.1f}")
@@ -153,8 +167,8 @@ def display_all_predictions(df_with_spread, df_with_total):
         print(f"  Total prediction: {pred_total:.1f}")
         
         # Total pick vs betting line
-        if pd.notna(row['fd_over']):
-            betting_total = row['fd_over']
+        if odds_result and pd.notna(odds_result[1]):
+            betting_total = odds_result[1]
             if pred_total > betting_total:
                 print(f"  Pick: Over {betting_total:.1f}")
             else:
@@ -194,33 +208,26 @@ def main():
     else:
         print("✅ No bias will be applied")
     
-    # Get today's date for default table name
-    today_table = f"setTarget_{datetime.now().strftime('%m%d%Y')}"
+    # Get today's date
+    today = datetime.now().strftime('%Y-%m-%d')
     
-    # Prompt user for target table
-    print(f"\nDefault target table: {today_table}")
-    response = input(f"Use this table? (y/n): ").lower().strip()
-    
-    if response == 'y':
-        target_table = today_table
-    else:
-        target_table = input("Enter target table name: ").strip()
-    
-    print(f"\n🎯 Using target table: {target_table}")
-    
-    # Verify table exists
+    # Check if games exist for today in setTarget2026
     conn = sqlite3.connect(MASTER_DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (target_table,))
-    if not cursor.fetchone():
-        print(f"❌ Table {target_table} not found in master.db")
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026 WHERE game_date = ?", (today,))
+    game_count = cursor.fetchone()[0]
+    
+    if game_count == 0:
+        print(f"❌ No games found in setTarget2026 for {today}")
         conn.close()
         return
+    
+    print(f"\n🎯 Using setTarget2026 for {today} ({game_count} games)")
     conn.close()
     
     # Run both models and get predictions
-    df_spread = run_model("spread", target_table)
-    df_total = run_model("total", target_table, total_bias)
+    df_spread = run_model("spread", "setTarget2026", today)
+    df_total = run_model("total", "setTarget2026", today, total_bias)
     
     # Display all predictions with picks (sorted by biggest edge)
     display_all_predictions(df_spread, df_total)

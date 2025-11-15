@@ -26,7 +26,7 @@ def analyze_completed_games():
     # Get incomplete predictions with their game data
     cursor.execute("""
         SELECT mp.predictionId, mp.modelId, mp.game_id, mp.predicted_pt_diff, 
-               mp.fd_home_spread, mp.fd_home_spreadPrice, mp.unitsBet,
+               mp.fd_home_spread, mp.fd_home_spreadPrice, mp.fd_away_spreadPrice, mp.unitsBet,
                g.is_completed, g.home_score, g.away_score, g.pt_diff
         FROM modelPredictions mp
         JOIN games2026 g ON mp.game_id = g.game_id
@@ -37,7 +37,7 @@ def analyze_completed_games():
     print(f"📊 Found {len(completed_predictions)} completed games to analyze")
     
     for prediction in completed_predictions:
-        pred_id, model_id, game_id, pred_pt_diff, fd_home_spread, fd_home_spread_price, units_bet, _, home_score, away_score, actual_pt_diff = prediction
+        pred_id, model_id, game_id, pred_pt_diff, fd_home_spread, fd_home_spread_price, fd_away_spread_price, units_bet, _, home_score, away_score, actual_pt_diff = prediction
         
         # Update prediction with game results
         cursor.execute("""
@@ -53,7 +53,13 @@ def analyze_completed_games():
         if (actual_cover > 0 and predicted_cover > 0) or (actual_cover < 0 and predicted_cover < 0):
             # Correct prediction
             w_l = 'w'
-            units_won = calculate_units_won(units_bet, fd_home_spread_price)
+            # Use correct spread price based on which team was picked
+            if predicted_cover > 0:
+                # Picked home team, use home spread price
+                units_won = calculate_units_won(units_bet, fd_home_spread_price)
+            else:
+                # Picked away team, use away spread price
+                units_won = calculate_units_won(units_bet, fd_away_spread_price)
         else:
             # Incorrect prediction
             w_l = 'l'

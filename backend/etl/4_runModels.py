@@ -96,14 +96,25 @@ def apply_model_weights(df, weights):
     
     return df
 
-def calculate_edges_and_picks(df):
-    """Calculate edges and determine picks"""
+def calculate_edges_and_picks(df, conn):
+    """Calculate edges and determine picks using betting odds from games2026"""
     edges = []
+    cursor = conn.cursor()
     
     for _, row in df.iterrows():
-        if pd.notna(row['fd_home_spread']):
+        # Get betting odds from games2026 using team matching
+        cursor.execute("""
+        SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice
+        FROM games2026 
+        WHERE home_kpid = ? AND away_kpid = ? AND game_date = ? AND is_completed = 0
+        """, (row['home_kpid'], row['away_kpid'], row['game_date']))
+        
+        game_odds = cursor.fetchone()
+        if game_odds and pd.notna(game_odds[1]):
+            game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice = game_odds
+            
             pred_diff = row['pred_pt_diff']
-            home_spread = row['fd_home_spread']
+            home_spread = fd_home_spread
             edge = abs(pred_diff + home_spread)
             
             # Determine pick
@@ -114,13 +125,21 @@ def calculate_edges_and_picks(df):
                 pick_team = row['away_team']
                 pick_spread = -home_spread
             
+            # Add betting odds to row data
+            row_with_odds = row.copy()
+            row_with_odds['game_id'] = game_id
+            row_with_odds['fd_home_spread'] = fd_home_spread
+            row_with_odds['fd_home_spreadPrice'] = fd_home_spreadPrice
+            row_with_odds['fd_away_spread'] = fd_away_spread
+            row_with_odds['fd_away_spreadPrice'] = fd_away_spreadPrice
+            
             edges.append({
-                'game_id': row['game_id'],
+                'game_id': game_id,
                 'edge': edge,
                 'pick_team': pick_team,
                 'pick_spread': pick_spread,
                 'pred_pt_diff': pred_diff,
-                'row_data': row
+                'row_data': row_with_odds
             })
     
     return sorted(edges, key=lambda x: x['edge'], reverse=True)
@@ -138,23 +157,20 @@ def run_daily_predictions():
     """Main function to run daily predictions for all models"""
     print("🏀 Starting daily predictions...")
     
-    # Get today's date for target table
-    today = datetime.now().strftime('%m%d%Y')
-    target_table = f"setTarget_{today}"
+    # Get today's date
+    today = datetime.now().strftime('%Y-%m-%d')
     
     conn = sqlite3.connect(DB_PATH)
-    
-    # Check if target table exists
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (target_table,))
-    if not cursor.fetchone():
-        print(f"❌ Target table {target_table} not found")
+    
+    # Load baseline target data from setTarget2026 for today
+    print(f"📊 Loading baseline target data from setTarget2026 for {today}")
+    baseline_df = pd.read_sql("SELECT * FROM setTarget2026 WHERE game_date = ?", conn, params=(today,))
+    
+    if len(baseline_df) == 0:
+        print(f"❌ No games found in setTarget2026 for {today}")
         conn.close()
         return
-    
-    # Load baseline target data
-    print(f"📊 Loading baseline target data from {target_table}")
-    baseline_df = pd.read_sql(f"SELECT * FROM {target_table}", conn)
     print(f"Loaded {len(baseline_df)} games")
     
     # Get all models
@@ -201,7 +217,7 @@ def run_daily_predictions():
         
         # Get training feature columns from setAlpha to match model training
         df_train = pd.read_sql("SELECT * FROM setAlpha LIMIT 1", conn)
-        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season"]
+        drop_cols = ["id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "game_date"]
         feature_cols = [c for c in df_train.columns if c not in drop_cols]
         
         # Ensure target data has all training features in same order
@@ -221,7 +237,7 @@ def run_daily_predictions():
         
         # Calculate edges and get top 5
         print("📊 Calculating edges...")
-        edges = calculate_edges_and_picks(model_df)
+        edges = calculate_edges_and_picks(model_df, conn)
         top_5_edges = edges[:5]
         
         print(f"🎯 Top 5 edges: {[round(e['edge'], 2) for e in top_5_edges]}")
@@ -252,6 +268,9 @@ def run_daily_predictions():
             pick_text = f"Pick: {edge_data['pick_team']} {edge_data['pick_spread']:+.1f}"
             summary = f"{model_name} {verb} {prediction_text} // {pick_text}"
             
+            # Use game_date from row data
+            game_date = row['game_date']
+            
             cursor.execute("""
                 INSERT INTO modelPredictions 
                 (datePredicted, modelId, game_id, game_date, is_completed, home_team, away_team,
@@ -262,7 +281,7 @@ def run_daily_predictions():
                 datetime.now().date().isoformat(),
                 model_id,
                 row['game_id'],
-                row.get('game_date'),
+                game_date,
                 False,
                 row['home_team'],
                 row['away_team'],
