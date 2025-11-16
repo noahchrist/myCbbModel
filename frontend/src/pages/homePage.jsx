@@ -40,6 +40,8 @@ const HomePage = () => {
   const [isCreatingModel, setIsCreatingModel] = useState(false);
   const [userModels, setUserModels] = useState([]);
   const [communityModels, setCommunityModels] = useState([]);
+  const [modelHistory, setModelHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const getModelColors = (tenDigit) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
@@ -297,6 +299,28 @@ const HomePage = () => {
     }
   };
 
+  const fetchModelHistory = async (modelId) => {
+    try {
+      setLoadingHistory(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // Include auth header if available, but don't require it for community models
+      const headers = {};
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`http://localhost:8000/model-history/${modelId}`, { headers });
+      const data = await response.json();
+      setModelHistory(data.predictions || []);
+    } catch (error) {
+      console.error('Error fetching model history:', error);
+      setModelHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleDeleteModel = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -548,7 +572,7 @@ const HomePage = () => {
                   {userModels.map(model => {
                     const modelStyle = getModelStyle(model.tenDigit);
                     return (
-                      <div key={model.id} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); }}>
+                      <div key={model.id} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); fetchModelHistory(model.id); }}>
                         <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', fontWeight: 'bold' }}>{model.modelName}</h3>
                         <div className="model-stats">
                           <div className="stat-row">
@@ -628,7 +652,7 @@ const HomePage = () => {
                 {communityModels.map((model, index) => {
                   const modelStyle = getModelStyle(model.tenDigit);
                   return (
-                    <div key={index} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); }}>
+                    <div key={index} className="model-box" style={{...modelStyle, cursor: 'pointer'}} onClick={() => { setSelectedModel(model); setShowModelDetailModal(true); fetchModelHistory(model.id); }}>
                       <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', fontWeight: 'bold' }}>{model.modelName}</h3>
                       <div className="model-stats">
                         <div className="stat-row">
@@ -765,17 +789,87 @@ const HomePage = () => {
       {/* Model Detail Modal */}
       {showModelDetailModal && (
         <div className="modal-overlay" onClick={() => setShowModelDetailModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowModelDetailModal(false)}>×</button>
-            <h2>{selectedModel?.modelName}</h2>
-            <p>Detailed stats and history coming soon...</p>
-            <button 
-              className="delete-button"
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{ backgroundColor: '#ff4444', color: 'white', marginTop: '20px' }}
-            >
-              Delete Model
-            </button>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ 
+            maxWidth: '800px', 
+            maxHeight: '80vh', 
+            overflow: 'auto',
+            background: `linear-gradient(135deg, #${(parseInt(selectedModel?.tenDigit?.toString().slice(0, 6) || 'ffffff', 16) | 0xf0f0f0).toString(16).slice(-6)} 0%, #${(parseInt(selectedModel?.tenDigit?.toString().slice(-6) || 'ffffff', 16) | 0xf0f0f0).toString(16).slice(-6)} 100%)`,
+            border: `2px solid #${(parseInt(selectedModel?.tenDigit?.toString().slice(0, 6) || 'cccccc', 16) | 0xc0c0c0).toString(16).slice(-6)}`,
+            color: '#333'
+          }}>
+            <button className="modal-close" onClick={() => setShowModelDetailModal(false)} style={{
+              color: '#333'
+            }}>×</button>
+            <h2 style={{
+              color: `#${selectedModel?.tenDigit?.toString().slice(0, 6) || '333333'}`
+            }}>{selectedModel?.modelName}</h2>
+            
+            {loadingHistory ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>Loading history...</div>
+            ) : modelHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>No betting history available</div>
+            ) : (
+              <div className="model-history">
+                <h3 style={{
+                  color: `#${selectedModel?.tenDigit?.toString().slice(0, 6) || '333333'}`
+                }}>Betting History</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid #${(parseInt(selectedModel?.tenDigit?.toString().slice(0, 6) || 'cccccc', 16) | 0xe0e0e0).toString(16).slice(-6)}` }}>
+                      <th style={{ 
+                        textAlign: 'left', 
+                        padding: '8px', 
+                        fontWeight: 'bold',
+                        color: `#${selectedModel?.tenDigit?.toString().slice(0, 6) || '333333'}`
+                      }}>Date</th>
+                      <th style={{ 
+                        textAlign: 'left', 
+                        padding: '8px', 
+                        fontWeight: 'bold',
+                        color: `#${selectedModel?.tenDigit?.toString().slice(0, 6) || '333333'}`
+                      }}>Pick</th>
+                      <th style={{ 
+                        textAlign: 'left', 
+                        padding: '8px', 
+                        fontWeight: 'bold',
+                        color: `#${selectedModel?.tenDigit?.toString().slice(0, 6) || '333333'}`
+                      }}>Units</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modelHistory.map((prediction, index) => {
+                      const isWin = prediction.result === 'w';
+                      const unitsDisplay = prediction.unitsWon > 0 ? `+${prediction.unitsWon.toFixed(2)}u` : `${prediction.unitsWon.toFixed(2)}u`;
+                      const textColor = '#555';
+                      
+                      return (
+                        <tr key={index} style={{ borderBottom: `1px solid #${(parseInt(selectedModel?.tenDigit?.toString().slice(0, 6) || 'eeeeee', 16) | 0xf0f0f0).toString(16).slice(-6)}` }}>
+                          <td style={{ textAlign: 'left', padding: '8px', color: textColor }}>
+                            {new Date(prediction.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
+                          </td>
+                          <td style={{ textAlign: 'left', padding: '8px', color: textColor }}>
+                            {prediction.teamPick} {prediction.price > 0 ? `+${prediction.price}` : prediction.price}
+                          </td>
+                          <td style={{ textAlign: 'left', padding: '8px', fontWeight: 'bold', color: isWin ? 'green' : 'red' }}>
+                            {unitsDisplay}
+                          </td>
+                        </tr>
+                      );
+                    })})
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {userModels.some(model => model.id === selectedModel?.id) && (
+              <button 
+                className="delete-button"
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{ backgroundColor: '#ff4444', color: 'white', marginTop: '20px' }}
+              >
+                Delete Model
+              </button>
+            )}
           </div>
         </div>
       )}

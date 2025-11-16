@@ -12,7 +12,7 @@ from .auth import get_current_user, sync_user_in_local_db, UserCreate
 from .games import get_games_by_date
 from .models import (
     get_model_names, get_user_models, create_model, 
-    get_community_models, delete_model, ModelCreate
+    get_community_models, delete_model, get_model_history, ModelCreate
 )
 
 load_dotenv()
@@ -90,6 +90,15 @@ async def create_new_model(request: ModelCreate, user_id: str = Depends(get_user
 @app.get("/community-models")
 async def community_models():
     return await get_community_models()
+
+@app.get("/model-history/{model_id}")
+async def model_history(model_id: int, request: Request):
+    # Try to get user_id, but don't require it for community models
+    try:
+        user_id = await get_user_dependency()(request)
+    except:
+        user_id = None
+    return await get_model_history(model_id, user_id)
 
 @app.delete("/delete-model/{model_id}")
 async def delete_user_model(model_id: int, user_id: str = Depends(get_user_dependency())):

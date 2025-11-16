@@ -169,7 +169,7 @@ async def get_community_models():
     cursor = conn.cursor()
     
     cursor.execute(
-        """SELECT m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
+        """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
            COUNT(p.predictionId) as totalPredictions,
            SUM(CASE WHEN p.unitsWon > 0 THEN 1 ELSE 0 END) as wins,
            SUM(CASE WHEN p.unitsWon < 0 THEN 1 ELSE 0 END) as losses,
@@ -184,10 +184,11 @@ async def get_community_models():
     
     models = []
     for row in cursor.fetchall():
-        name, user, created, style, ten_digit, total, wins, losses, units_won, units_bet = row
+        model_id, name, user, created, style, ten_digit, total, wins, losses, units_won, units_bet = row
         roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
         
         models.append({
+            "id": model_id,
             "modelName": name,
             "userName": user or "Anonymous",
             "dateCreated": created,
@@ -201,6 +202,51 @@ async def get_community_models():
     
     conn.close()
     return {"models": models}
+
+async def get_model_history(model_id: int, user_id: str = None):
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Verify model exists (no ownership check for community viewing)
+    cursor.execute("SELECT id FROM modelDetails WHERE id = ?", (model_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    # Get prediction history
+    cursor.execute("""
+        SELECT datePredicted, home_team, away_team, fd_home_spread, fd_home_spreadPrice, 
+               fd_away_spread, fd_away_spreadPrice, predicted_pt_diff, unitsBet, unitsWon, w_l
+        FROM modelPredictions 
+        WHERE modelId = ? AND is_completed = 1
+        ORDER BY datePredicted DESC
+    """, (model_id,))
+    
+    predictions = []
+    for row in cursor.fetchall():
+        date, home_team, away_team, home_spread, home_price, away_spread, away_price, pred_diff, units_bet, units_won, w_l = row
+        
+        # Determine which team was picked and format display
+        if pred_diff + home_spread > 0:
+            # Picked home team
+            team_pick = f"{home_team} {home_spread:+.1f}"
+            price = home_price
+        else:
+            # Picked away team  
+            team_pick = f"{away_team} {away_spread:+.1f}"
+            price = away_price
+        
+        predictions.append({
+            "date": date,
+            "teamPick": team_pick,
+            "price": price,
+            "unitsWon": units_won,
+            "result": w_l
+        })
+    
+    conn.close()
+    return {"predictions": predictions}
 
 async def delete_model(model_id: int, user_id: str):
     db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
