@@ -75,24 +75,8 @@ def run_model(model_type, target_table, game_date=None, total_bias=0):
     
     df_target[f"pred_{TARGET}"] = predictions
 
-    # --- Save predictions ---
-    timestamp = datetime.now().strftime('%m%d%Y_%H%M%S')
-    if model_type == "spread":
-        out_table = f"predictionsLinearSpread_{timestamp}"
-        df_target[[
-            "game_id", "season", "home_team", "away_team",
-            f"pred_{TARGET}"
-        ]].to_sql(out_table, conn, if_exists="replace", index=False)
-    else:
-        out_table = f"predictionsLinearTotal_{timestamp}"
-        df_target["userBias"] = total_bias
-        df_target[[
-            "game_id", "season", "home_team", "away_team",
-            f"pred_{TARGET}", "userBias"
-        ]].to_sql(out_table, conn, if_exists="replace", index=False)
-
     conn.close()
-    print(f"✅ {len(df_target)} {model_name.lower()} predictions saved to table: {out_table}")
+    print(f"✅ {len(df_target)} {model_name.lower()} predictions generated")
     
     return df_target
 
@@ -232,7 +216,7 @@ def main():
     # Display all predictions with picks (sorted by biggest edge)
     display_all_predictions(df_spread, df_total)
     
-    print("\n🎯 Predictions complete and saved to master.db!")
+    print("\n🎯 Predictions complete!")
 
 if __name__ == "__main__":
     main()
