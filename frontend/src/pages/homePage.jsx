@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const HomePage = () => {
   const [activeSection, setActiveSection] = useState('Home');
   const [isMobile, setIsMobile] = useState(false);
@@ -91,7 +93,7 @@ const HomePage = () => {
   const fetchGames = async (date) => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/games/${date}`);
+      const response = await fetch(`${API_URL}/games/${date}`);
       const data = await response.json();
       setGames(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -180,7 +182,7 @@ const HomePage = () => {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('Session:', session);
         if (session?.access_token) {
-          const response = await fetch('http://localhost:8000/me', {
+          const response = await fetch(`${API_URL}/me`, {
             method: 'POST',
             headers: { 
               Authorization: `Bearer ${session.access_token}`,
@@ -235,7 +237,7 @@ const HomePage = () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
-            await fetch('http://localhost:8000/me', {
+            await fetch(`${API_URL}/me`, {
               headers: { Authorization: `Bearer ${session.access_token}` }
             });
           }
@@ -266,7 +268,7 @@ const HomePage = () => {
 
   const fetchModelNames = async () => {
     try {
-      const response = await fetch('http://localhost:8000/model-names');
+      const response = await fetch(`${API_URL}/model-names`);
       const data = await response.json();
       setModelNames(data.names);
     } catch (error) {
@@ -279,7 +281,7 @@ const HomePage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const response = await fetch('http://localhost:8000/user-models', {
+      const response = await fetch(`${API_URL}/user-models`, {
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
       const data = await response.json();
@@ -291,7 +293,7 @@ const HomePage = () => {
 
   const fetchCommunityModels = async () => {
     try {
-      const response = await fetch('http://localhost:8000/community-models');
+      const response = await fetch(`${API_URL}/community-models`);
       const data = await response.json();
       setCommunityModels(data.models || []);
     } catch (error) {
@@ -310,7 +312,7 @@ const HomePage = () => {
         headers.Authorization = `Bearer ${session.access_token}`;
       }
 
-      const response = await fetch(`http://localhost:8000/model-history/${modelId}`, { headers });
+      const response = await fetch(`${API_URL}/model-history/${modelId}`, { headers });
       const data = await response.json();
       setModelHistory(data.predictions || []);
     } catch (error) {
@@ -326,7 +328,7 @@ const HomePage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const response = await fetch(`http://localhost:8000/delete-model/${selectedModel.id}`, {
+      const response = await fetch(`${API_URL}/delete-model/${selectedModel.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
@@ -373,7 +375,7 @@ const HomePage = () => {
         rejectedNames: modelNames.filter(name => name !== selectedModelName)
       };
 
-      const response = await fetch('http://localhost:8000/create-model', {
+      const response = await fetch(`${API_URL}/create-model`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${session.access_token}`,
