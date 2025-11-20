@@ -37,8 +37,10 @@ ENV/
 # Logs
 *.log
 
-# Database files (if you want to exclude them)
-# *.db
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
 
 # OS
 .DS_Store

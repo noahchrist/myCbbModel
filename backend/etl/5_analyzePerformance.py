@@ -1,11 +1,14 @@
 import sqlite3
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Anchor paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
-DB_PATH = os.path.join(BACKEND_DIR, 'data', 'master.db')
+DB_PATH = os.environ.get('DB_PATH') or os.path.join(BACKEND_DIR, 'data', 'master.db')
 
 def calculate_units_won(units_bet, spread_price):
     """Calculate units won based on bet amount and spread price"""

@@ -4,6 +4,9 @@ from supabase import Client
 import sqlite3
 import os
 import random
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class UserCreate(BaseModel):
     displayName: str
@@ -28,7 +31,7 @@ async def get_current_user(request: Request, supabase: Client):
 def sync_user_in_local_db(supabase_user_id: str, email: str = None, display_name: str = None):
     try:
         print(f"sync_user_in_local_db called: user_id={supabase_user_id}, email={email}, display_name={display_name}")
-        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
         
         if not os.path.exists(db_path):
             print("Database file does not exist")

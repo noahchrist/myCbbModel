@@ -2,6 +2,9 @@ import sqlite3
 import os
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -10,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 DATA_DIR = os.path.join(BACKEND_DIR, "data")
-MASTER_DB = os.path.join(DATA_DIR, "master.db")
+MASTER_DB = os.environ.get('DB_PATH') or os.path.join(DATA_DIR, "master.db")
 
 def create_targets():
     """Create predictive dataset from today's upcoming games"""

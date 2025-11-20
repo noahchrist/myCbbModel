@@ -8,6 +8,9 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 import joblib
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ModelCreate(BaseModel):
     modelName: str
@@ -17,7 +20,7 @@ class ModelCreate(BaseModel):
     rejectedNames: list
 
 async def get_model_names():
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -28,7 +31,7 @@ async def get_model_names():
     return {"names": names}
 
 async def get_user_models(user_id: str):
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -72,7 +75,7 @@ async def create_model(request: ModelCreate, user_id: str):
         print(f"Creating model for user: {user_id}")
         print(f"Request data: {request.dict()}")
         
-        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -164,7 +167,7 @@ async def create_model(request: ModelCreate, user_id: str):
         raise HTTPException(status_code=500, detail=f"Error creating model: {str(e)}")
 
 async def get_community_models():
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -204,7 +207,7 @@ async def get_community_models():
     return {"models": models}
 
 async def get_model_history(model_id: int, user_id: str = None):
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -249,7 +252,7 @@ async def get_model_history(model_id: int, user_id: str = None):
     return {"predictions": predictions}
 
 async def delete_model(model_id: int, user_id: str):
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
