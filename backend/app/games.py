@@ -1,10 +1,13 @@
 import sqlite3
 import os
 from typing import List, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 async def get_games_by_date(date: str) -> List[Dict[str, Any]]:
     """Get games for a specific date with FanDuel odds"""
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
