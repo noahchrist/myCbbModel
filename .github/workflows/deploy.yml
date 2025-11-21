@@ -1,0 +1,44 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install SSH key
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_KEY }}
+
+    - name: Deploy to Lightsail
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} << 'EOF'
+
+        cd ~/myCbbModel
+
+        # Pull latest repo changes
+        git pull
+
+        # BACKEND UPDATE
+        cd backend
+        source venv/bin/activate
+        pip install -r requirements.txt
+        sudo systemctl restart weightroom
+
+        # FRONTEND UPDATE
+        cd ~/myCbbModel/frontend
+        npm install --legacy-peer-deps
+        npm run build
+
+        sudo rm -rf /var/www/html/*
+        sudo cp -r dist/* /var/www/html/
+        sudo systemctl reload nginx
+
+        EOF

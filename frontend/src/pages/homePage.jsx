@@ -899,7 +899,7 @@ const HomePage = () => {
                           </td>
                         </tr>
                       );
-                    })})
+                    })}
                   </tbody>
                 </table>
               </div>
