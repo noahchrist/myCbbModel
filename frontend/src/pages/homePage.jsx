@@ -676,6 +676,17 @@ const HomePage = () => {
         
         {activeSection === 'Community' && (
           <div className="community-content">
+            <div className="top-picks-section" style={{ marginBottom: '2rem' }}>
+              <h2>Top Picks for {new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</h2>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                Picks coming soon...
+              </div>
+            </div>
             <h2>Community Models</h2>
             {communityModels.length === 0 ? (
               <div>Loading community models...</div>
@@ -893,7 +904,7 @@ const HomePage = () => {
               </div>
             )}
             
-            {userModels.some(model => model.id === selectedModel?.id) && (
+            {activeSection === 'My Models' && userModels.some(model => model.id === selectedModel?.id) && (
               <button 
                 className="delete-button"
                 onClick={() => setShowDeleteConfirm(true)}
