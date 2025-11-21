@@ -278,9 +278,9 @@ const HomePage = () => {
   };
 
   const handleLogout = async () => {
+    setUser(null);
     try {
       await signOut();
-      setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -731,8 +731,8 @@ const HomePage = () => {
           <div className="account-content">
             <h2>Welcome, {user?.user_metadata?.display_name || user?.email}</h2>
             <p>Profile page coming soon</p>
-            <button onClick={async () => {
-              await handleLogout();
+            <button onClick={() => {
+              handleLogout();
               setActiveSection('Home');
             }}>Logout</button>
           </div>
