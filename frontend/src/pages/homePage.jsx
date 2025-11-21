@@ -279,6 +279,7 @@ const HomePage = () => {
 
   const handleLogout = async () => {
     setUser(null);
+    setUserModels([]);
     try {
       await signOut();
     } catch (error) {
