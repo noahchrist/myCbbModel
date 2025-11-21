@@ -13,7 +13,7 @@ load_dotenv()
 # === PATHS ===
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
-MASTER_DB_PATH = os.environ.get('DB_PATH') or os.path.join(BACKEND_DIR, "data", "master.db")
+MASTER_DB_PATH = os.environ.get('DB_PATH')
 TRAIN_TABLE = "setAlpha"
 
 # === CORE TRAINING + PREDICTION ===

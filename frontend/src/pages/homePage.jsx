@@ -1,7 +1,27 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const showToast = (message, type = 'info') => {
+  toast[type](message, {
+    position: 'top-center',
+    autoClose: 3000,
+    hideProgressBar: true,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    style: {
+      backgroundColor: 'white',
+      color: 'black',
+      border: '2px solid #00ff00',
+      borderRadius: '8px',
+      fontFamily: 'inherit'
+    }
+  });
+};
 
 const HomePage = () => {
   const [activeSection, setActiveSection] = useState('Home');
@@ -227,7 +247,7 @@ const HomePage = () => {
       if (isSignUp) {
         const user = await signUp(loginForm.email, loginForm.password, loginForm.displayName);
         console.log('User signed up:', user);
-        alert('Check your email for verification!');
+        showToast('Check your email for verification!', 'success');
       } else {
         const user = await signIn(loginForm.email, loginForm.password);
         console.log('User signed in:', user);
@@ -251,7 +271,7 @@ const HomePage = () => {
       handleCloseModal();
     } catch (error) {
       console.error('Auth error:', error);
-      alert(error.message);
+      showToast(error.message, 'error');
     } finally {
       setAuthLoading(false);
     }
@@ -334,17 +354,17 @@ const HomePage = () => {
       });
 
       if (response.ok) {
-        alert('Model deleted successfully!');
+        showToast('Model deleted successfully!', 'success');
         setShowDeleteConfirm(false);
         setShowModelDetailModal(false);
         fetchUserModels();
         fetchCommunityModels();
       } else {
-        alert('Error deleting model');
+        showToast('Error deleting model', 'error');
       }
     } catch (error) {
       console.error('Error deleting model:', error);
-      alert('Error deleting model');
+      showToast('Error deleting model', 'error');
     }
   };
 
@@ -352,9 +372,19 @@ const HomePage = () => {
     try {
       setIsCreatingModel(true);
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
+      if (!session?.access_token) {
+        showToast('Please log in to create a model', 'error');
+        setIsCreatingModel(false);
+        return;
+      }
 
-      const tenDigit = sliders.map(s => s.value - 1).join('');
+      const tenDigitArray = sliders.map(s => s.value - 1);
+      // Shuffle the array
+      for (let i = tenDigitArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tenDigitArray[i], tenDigitArray[j]] = [tenDigitArray[j], tenDigitArray[i]];
+      }
+      const tenDigit = tenDigitArray.join('');
       
       const modelData = {
         modelName: selectedModelName,
@@ -385,18 +415,18 @@ const HomePage = () => {
       });
 
       if (response.ok) {
-        alert('Model created successfully!');
+        showToast('Model created successfully!', 'success');
         setShowModelModal(false);
         setSelectedModelName('');
         setSelectedBettingStyle('');
         setSliders(prev => prev.map(slider => ({ ...slider, value: 5 })));
         fetchUserModels();
       } else {
-        alert('Error creating model');
+        showToast('Error creating model', 'error');
       }
     } catch (error) {
       console.error('Error creating model:', error);
-      alert('Error creating model');
+      showToast('Error creating model', 'error');
     } finally {
       setIsCreatingModel(false);
     }
@@ -951,6 +981,8 @@ const HomePage = () => {
           </div>
         </div>
       )}
+      
+      <ToastContainer />
     </div>
   );
 };

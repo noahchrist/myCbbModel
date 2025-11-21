@@ -42,6 +42,10 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Model files
+backend/data/modelFits/
+*.joblib
+
 # OS
 .DS_Store
 Thumbs.db

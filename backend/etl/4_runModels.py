@@ -11,7 +11,7 @@ load_dotenv()
 # Anchor paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
-DB_PATH = os.environ.get('DB_PATH') or os.path.join(BACKEND_DIR, 'data', 'master.db')
+DB_PATH = os.environ.get('DB_PATH')
 
 def get_multiplier(weight_value, min_mult, max_mult):
     """Convert weight (0-9) to multiplier in given range"""

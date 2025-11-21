@@ -19,7 +19,7 @@ BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
 # Define paths relative to backend directory
 DATA_DIR = os.path.join(BACKEND_DIR, "data")
 LOGS_DIR = os.path.join(BACKEND_DIR, "logs")
-DB_PATH = os.environ.get('DB_PATH') or os.path.join(DATA_DIR, "master.db")
+DB_PATH = os.environ.get('DB_PATH')
 LOG_PATH = os.path.join(LOGS_DIR, "kenpom_2026_complete.log")
 
 # ==============================================
