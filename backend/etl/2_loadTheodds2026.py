@@ -326,7 +326,29 @@ try:
                 if cursor.rowcount > 0:
                     scores_processed += 1
                 else:
-                    logger.warning(f"No existing game found for score update: {game_id}")
+                    # Game doesn't exist, insert it with scores
+                    logger.info(f"Adding new completed game: {game_id}")
+                    
+                    # Convert time and get game date
+                    est_time, game_date = convert_to_est_and_game_date(game['commence_time'])
+                    
+                    # Get team kpids
+                    home_kpid = get_team_kpid(home_team)
+                    away_kpid = get_team_kpid(away_team)
+                    
+                    cursor.execute("""
+                        INSERT INTO games2026 (
+                            load_datetime, game_id, commence_time, game_date, is_completed,
+                            home_kpid, away_kpid, home_team, away_team,
+                            home_score, away_score, pt_diff, pt_total
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        datetime.now(), game_id, est_time, game_date, 1,
+                        home_kpid, away_kpid, home_team, away_team,
+                        home_score, away_score, pt_diff, pt_total
+                    ))
+                    
+                    scores_processed += 1
             
         except Exception as e:
             logger.error(f"Error processing scores for game {game.get('id', 'unknown')}: {e}")
