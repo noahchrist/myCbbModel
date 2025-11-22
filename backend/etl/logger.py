@@ -4,12 +4,21 @@ import os
 import gzip
 import shutil
 from dotenv import load_dotenv
+import socket
 
 # ==============================
 # Global Settings
 # ==============================
 
-load_dotenv()
+IS_SERVER = socket.gethostname().startswith("ip-")
+
+# Load .env from correct location
+if IS_SERVER:
+    # Load server .env
+    load_dotenv("/home/ubuntu/env/weightroom.env")
+else:
+    # Load local .env (in project root)
+    load_dotenv()
 
 # Absolute path recommended (relative paths break when scripts run via cron/EventBridge)
 LOG_DIR = os.environ.get("ETL_LOG_DIR")
