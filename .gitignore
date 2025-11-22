@@ -36,6 +36,7 @@ ENV/
 
 # Logs
 *.log
+*.gz
 
 # SQLite databases
 *.db
