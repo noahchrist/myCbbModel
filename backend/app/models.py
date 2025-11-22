@@ -41,7 +41,9 @@ async def get_user_models(user_id: str):
            SUM(CASE WHEN p.unitsWon > 0 THEN 1 ELSE 0 END) as wins,
            SUM(CASE WHEN p.unitsWon < 0 THEN 1 ELSE 0 END) as losses,
            SUM(p.unitsWon) as unitsWon,
-           SUM(p.unitsBet) as unitsBet
+           SUM(p.unitsBet) as unitsBet,
+           m.weightGenOff, m.weightGenDef, m.weightPace, m.weightThrees, m.weightFts,
+           m.weightPerDef, m.weightIntDef, m.weightBoards, m.weightPlaymaking, m.weightIntangibles
            FROM modelDetails m
            LEFT JOIN modelPredictions p ON m.id = p.modelId
            WHERE m.userId = ?
@@ -51,8 +53,8 @@ async def get_user_models(user_id: str):
     
     models = []
     for row in cursor.fetchall():
-        model_id, name, created, style, ten_digit, total, wins, losses, units_won, units_bet = row
-        roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
+        model_id, name, created, style, ten_digit, total, wins, losses, units_won, units_bet, w_gen_off, w_gen_def, w_pace, w_threes, w_fts, w_per_def, w_int_def, w_boards, w_playmaking, w_intangibles = row
+        roi = (units_won / units_bet * 100) if units_bet and units_won and units_bet > 0 else 0
         
         models.append({
             "id": model_id,
@@ -64,7 +66,19 @@ async def get_user_models(user_id: str):
             "wins": wins or 0,
             "losses": losses or 0,
             "unitsWon": round(units_won or 0, 2),
-            "roi": round(roi, 1)
+            "roi": round(roi, 1),
+            "weights": {
+                "weightGenOff": w_gen_off or 0,
+                "weightGenDef": w_gen_def or 0,
+                "weightPace": w_pace or 0,
+                "weightThrees": w_threes or 0,
+                "weightFts": w_fts or 0,
+                "weightPerDef": w_per_def or 0,
+                "weightIntDef": w_int_def or 0,
+                "weightBoards": w_boards or 0,
+                "weightPlaymaking": w_playmaking or 0,
+                "weightIntangibles": w_intangibles or 0
+            }
         })
     
     conn.close()
@@ -188,7 +202,7 @@ async def get_community_models():
     models = []
     for row in cursor.fetchall():
         model_id, name, user, created, style, ten_digit, total, wins, losses, units_won, units_bet = row
-        roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
+        roi = (units_won / units_bet * 100) if units_bet and units_won and units_bet > 0 else 0
         
         models.append({
             "id": model_id,
