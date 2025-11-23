@@ -1,34 +1,37 @@
 import sqlite3
 import os
-import logging
 from datetime import datetime
 from dotenv import load_dotenv
+from logger import get_logger
+
+logger = get_logger("3_createBaselineTargets")
+
+# ==============================================
+# Setup
+# ==============================================
 
 load_dotenv()
+DB_PATH = os.environ.get('DB_PATH')
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+if not DB_PATH:
+    raise ValueError("Missing DB_PATH in environment variables or .env file")
 
-# Path setup
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(SCRIPT_DIR)
-DATA_DIR = os.path.join(BACKEND_DIR, "data")
-MASTER_DB = os.environ.get('DB_PATH')
+logger.info("Starting Create Baseline Targets ETL...")
 
-def create_targets():
-    """Create predictive dataset from today's upcoming games"""
+try:
+    # ==============================================
+    # Database Setup
+    # ==============================================
+    
+    logger.info("Setting up database connection")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     
     # Get today's date
     today = datetime.now().strftime('%Y-%m-%d')
+    logger.info(f"Creating target dataset for {today}")
     
-    logging.info(f"Creating target dataset for {today}")
-    logging.info(f"Appending to setTarget2026")
-    
-    # Connect to master database
-    conn = sqlite3.connect(MASTER_DB)
-    cursor = conn.cursor()
-    
-    # Drop and recreate setTarget2026 table with game_id as primary key
+    # Create setTarget2026 table with game_id as primary key
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS setTarget2026 (
         game_id TEXT PRIMARY KEY,
@@ -94,7 +97,7 @@ def create_targets():
         game_date DATE
     )
     """)
-    logging.info(f"✅ Created setTarget2026 table with game_id as primary key")
+    logger.info("Created setTarget2026 table with game_id as primary key")
     
     # Check for existing games today
     cursor.execute("SELECT COUNT(*) FROM setTarget2026 WHERE game_date = ?", (today,))
@@ -102,18 +105,12 @@ def create_targets():
     existing_count = result[0] if result else 0
     
     if existing_count > 0:
-        response = input(f"\n⚠️  Found {existing_count} games already loaded for {today}.\nProceed to update odds with latest data? (y/n): ").lower().strip()
-        if response != 'y':
-            logging.info("❌ Script cancelled by user")
-            conn.close()
-            return
-        
-        logging.info(f"📋 Updating {existing_count} existing games for {today}")
-        logging.info("Will update incomplete games and add any missing games")
+        logger.info(f"Found {existing_count} games already loaded for {today}")
+        logger.info("Will update incomplete games and add any missing games")
     
     # Use kenpom2026 table
     kenpom_table = "kenpom2026"
-    print(f"Using KenPom table: {kenpom_table}")
+    logger.info(f"Using KenPom table: {kenpom_table}")
     
     # Get today's upcoming games
     cursor.execute("""
@@ -123,7 +120,7 @@ def create_targets():
     """, (today,))
     
     games = cursor.fetchall()
-    print(f"Found {len(games)} upcoming games for today")
+    logger.info(f"Found {len(games)} upcoming games for today")
     
     processed = 0
     updated = 0
@@ -214,13 +211,11 @@ def create_targets():
                     away_blockPct, away_oppThreesPct, away_oppThreesRate, away_stlRate, away_nonStlTrnvrRate,
                     away_offRebPct, away_defRebPct, away_astRate, away_trnvrPct, away_effHeight,
                     away_expRtg, away_benchRtg, away_contRtg, game_date
-                ) VALUES (
-                    ?, ?, ?, 1, 0, ?, ?, ?, NULL, ?, NULL, NULL, NULL, NULL,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    game_id, game[6], game[7], game[3], int(game[2]), game[4], game[5],
+                    game_id, game[6], game[7], 1, 0, game[3], int(game[2]), game[4], None, game[5], None,
+                    None, None, None,
                     home_stats[0], home_stats[3], home_stats[1], home_stats[4],
                     home_stats[2], home_stats[14], home_stats[20], home_stats[6],
                     home_stats[15], home_stats[7], home_stats[16], home_stats[21],
@@ -235,15 +230,37 @@ def create_targets():
                     away_stats[11], away_stats[12], away_stats[13], game[3]
                 ))
                 inserted += 1
+            
             processed += 1
         else:
-            print(f"Missing KenPom data for game: {game[4]} vs {game[5]}")
+            logger.warning(f"Missing KenPom data for game {game_id}: {game[4]} vs {game[5]}")
     
     conn.commit()
-    conn.close()
     
-    logging.info(f"✅ Processed {processed} games: {inserted} new, {updated} updated")
-    logging.info(f"📁 Data saved to: {MASTER_DB}")
+    # ==============================================
+    # Final Summary
+    # ==============================================
+    
+    logger.info("Starting final verification")
+    
+    # Get final counts
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026 WHERE game_date = ?", (today,))
+    total_today = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026")
+    total_all = cursor.fetchone()[0]
+    
+    logger.info("Pipeline complete - final summary:")
+    logger.info(f"Games processed: {processed}")
+    logger.info(f"Records updated: {updated}")
+    logger.info(f"Records inserted: {inserted}")
+    logger.info(f"Total games for {today}: {total_today}")
+    logger.info(f"Total games in setTarget2026: {total_all}")
+    
+    conn.close()
+    logger.info("Create Baseline Targets pipeline finished")
 
-if __name__ == "__main__":
-    create_targets()
+except Exception:
+    logger.error("Create Baseline Targets ETL failed", exc_info=True)
+    if 'conn' in locals():
+        conn.close()

@@ -115,7 +115,7 @@ async def create_model(request: ModelCreate, user_id: str):
                 break
         print(f"Generated model seed: {model_seed}")
         
-        # Load training data and fit model
+        # Load training data and fit models
         print("Loading training data...")
         df_train = pd.read_sql("SELECT * FROM setAlpha", conn)
         print(f"Training data shape: {df_train.shape}")
@@ -125,23 +125,36 @@ async def create_model(request: ModelCreate, user_id: str):
         print(f"Feature columns: {len(feature_cols)}")
         
         X = df_train[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
-        y = pd.to_numeric(df_train["pt_diff"], errors="coerce").fillna(0)
-        print(f"X shape: {X.shape}, y shape: {y.shape}")
         
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=model_seed)
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        print("Model fitted successfully")
+        # Fit spread model (pt_diff)
+        y_spread = pd.to_numeric(df_train["pt_diff"], errors="coerce").fillna(0)
+        X_train, X_test, y_train_spread, y_test_spread = train_test_split(X, y_spread, test_size=0.2, random_state=model_seed)
+        model_spread = LinearRegression()
+        model_spread.fit(X_train, y_train_spread)
+        print("Spread model fitted successfully")
         
-        # Save model to joblib file
+        # Fit total model (pt_total)
+        y_total = pd.to_numeric(df_train["pt_total"], errors="coerce").fillna(0)
+        _, _, y_train_total, y_test_total = train_test_split(X, y_total, test_size=0.2, random_state=model_seed)
+        model_total = LinearRegression()
+        model_total.fit(X_train, y_train_total)
+        print("Total model fitted successfully")
+        
+        # Save models to joblib files
         model_fits_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'modelFits'))
-        model_filename = f"model_{model_seed}.joblib"
-        model_path = os.path.join(model_fits_dir, model_filename)
-        joblib.dump(model, model_path)
-        print(f"Model saved to: {model_path}")
+        spread_filename = f"modelSpread_{model_seed}.joblib"
+        total_filename = f"modelTotal_{model_seed}.joblib"
+        spread_path = os.path.join(model_fits_dir, spread_filename)
+        total_path = os.path.join(model_fits_dir, total_filename)
         
-        # Insert model details with path
+        joblib.dump(model_spread, spread_path)
+        joblib.dump(model_total, total_path)
+        print(f"Spread model saved to: {spread_path}")
+        print(f"Total model saved to: {total_path}")
+        
+        # Insert model details with both paths separated by semicolon
         print("Inserting model details...")
+        combined_paths = f"{spread_path};{total_path}"
         cursor.execute(
             """INSERT INTO modelDetails 
                (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, modelPath,
@@ -149,7 +162,7 @@ async def create_model(request: ModelCreate, user_id: str):
                 weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (user_id, request.modelName, datetime.now().isoformat(), model_seed, 
-             request.bettingStyle, request.tenDigit, model_path,
+             request.bettingStyle, request.tenDigit, combined_paths,
              request.weights['weightGenOff'], request.weights['weightGenDef'], 
              request.weights['weightPace'], request.weights['weightThrees'], 
              request.weights['weightFts'], request.weights['weightPerDef'], 
@@ -220,6 +233,55 @@ async def get_community_models():
     conn.close()
     return {"models": models}
 
+async def delete_model(model_id: int, user_id: str):
+    try:
+        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get model details
+        cursor.execute("SELECT modelName, modelPath FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+        result = cursor.fetchone()
+        if not result:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Model not found")
+        
+        model_name, combined_paths = result
+        
+        # Delete joblib files
+        if combined_paths:
+            if ';' in combined_paths:
+                # New format with both spread and total paths
+                spread_path, total_path = combined_paths.split(';')
+                
+                if spread_path and os.path.exists(spread_path):
+                    os.remove(spread_path)
+                    print(f"Deleted spread model file: {spread_path}")
+                
+                if total_path and os.path.exists(total_path):
+                    os.remove(total_path)
+                    print(f"Deleted total model file: {total_path}")
+            elif os.path.exists(combined_paths):
+                # Old single-path format
+                os.remove(combined_paths)
+                print(f"Deleted model file: {combined_paths}")
+        
+        # Delete from database tables
+        cursor.execute("DELETE FROM modelPredictions WHERE modelId = ?", (model_id,))
+        cursor.execute("DELETE FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+        cursor.execute("UPDATE modelNames SET userId = NULL WHERE modelName = ? AND userId = ?", (model_name, user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"message": "Model deleted successfully"}
+        
+    except Exception as e:
+        print(f"Error deleting model: {str(e)}")
+        if 'conn' in locals():
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error deleting model: {str(e)}")
+
 async def get_model_history(model_id: int, user_id: str = None):
     db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
@@ -265,32 +327,3 @@ async def get_model_history(model_id: int, user_id: str = None):
     conn.close()
     return {"predictions": predictions}
 
-async def delete_model(model_id: int, user_id: str):
-    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT modelName, modelPath FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
-    result = cursor.fetchone()
-    if not result:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Model not found")
-    
-    model_name, model_path = result
-    
-    # Delete joblib file if it exists
-    if model_path and os.path.exists(model_path):
-        try:
-            os.remove(model_path)
-            print(f"Deleted model file: {model_path}")
-        except Exception as e:
-            print(f"Error deleting model file {model_path}: {e}")
-    
-    cursor.execute("DELETE FROM modelPredictions WHERE modelId = ?", (model_id,))
-    cursor.execute("DELETE FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
-    cursor.execute("UPDATE modelNames SET userId = NULL WHERE modelName = ? AND userId = ?", (model_name, user_id))
-    
-    conn.commit()
-    conn.close()
-    
-    return {"message": "Model deleted successfully"}
