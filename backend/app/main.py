@@ -50,30 +50,20 @@ def get_user_dependency():
 async def me(request: Request, user_id: str = Depends(get_user_dependency())):
     try:
         auth_header = request.headers.get("Authorization")
-        token = auth_header.split(" ", 1)[1]
-        user_data = supabase.auth.get_user(jwt=token)
-
-        email = user_data.user.email if user_data.user else None
-        display_name = user_data.user.user_metadata.get('display_name') if user_data.user and user_data.user.user_metadata else None
-        sync_user_in_local_db(user_id, email, display_name)
+        if auth_header:
+            token = auth_header.split(" ", 1)[1]
+            user_data = supabase.auth.get_user(jwt=token)
+            
+            email = user_data.user.email if user_data.user else None
+            display_name = user_data.user.user_metadata.get('display_name') if user_data.user and user_data.user.user_metadata else None
+            sync_user_in_local_db(user_id, email, display_name)
+        else:
+            sync_user_in_local_db(user_id)
     except Exception as e:
         print(f"Error in GET /me: {e}")
         sync_user_in_local_db(user_id)
     
     return {"supabase_user_id": user_id}
-
-@app.post("/me")
-async def create_user(request: UserCreate, user_id: str = Depends(get_user_dependency())):
-    try:
-        auth_header = request.headers.get("Authorization")
-        token = auth_header.split(" ", 1)[1]
-        user_data = supabase.auth.get_user(jwt=token)
-        email = user_data.user.email if user_data.user else None
-        sync_user_in_local_db(user_id, email, request.displayName)
-    except Exception:
-        sync_user_in_local_db(user_id, display_name=request.displayName)
-    
-    return {"supabase_user_id": user_id, "displayName": request.displayName}
 
 # Game endpoints
 @app.get("/games/{date}")

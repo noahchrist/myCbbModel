@@ -8,6 +8,8 @@ import CommunityPage from './pages/CommunityPage';
 import AccountPage from './pages/AccountPage';
 import VerifiedPage from './pages/VerifiedPage';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 type TabType = 'home' | 'models' | 'community' | 'account';
 
 const App = () => {

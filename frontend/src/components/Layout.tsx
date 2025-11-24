@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 type TabType = 'home' | 'models' | 'community' | 'account';
 
 interface LayoutProps {
@@ -81,6 +83,18 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
         setUser(user);
         setActiveTab('models');
         handleCloseModal();
+        
+        // Sync user to local database after successful login
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            await fetch(`${API_URL}/me`, {
+              headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing user to local DB:', error);
+        }
       }
     } catch (error) {
       console.error('Auth error:', error);
