@@ -59,7 +59,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
   const [selectedModel, setSelectedModel] = useState<UserModel | null>(null);
   const [selectedModelForSliders, setSelectedModelForSliders] = useState<UserModel | null>(null);
 
-  const showToast = (message, type = 'info') => {
+  const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
       position: 'top-center',
       autoClose: 3000,
@@ -77,13 +77,13 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
     });
   };
 
-  const getModelColors = (tenDigit) => {
+  const getModelColors = (tenDigit: number) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
     const digits = tenDigit.toString().padStart(10, '0');
     const first6 = digits.slice(0, 6);
     const last6 = digits.slice(-6);
     
-    const adjustColor = (hex) => {
+    const adjustColor = (hex: string) => {
       const num = parseInt(hex, 16);
       const r = (num >> 16) & 255;
       const g = (num >> 8) & 255;
@@ -104,7 +104,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
     };
   };
 
-  const getModelStyle = (tenDigit) => {
+  const getModelStyle = (tenDigit: number) => {
     const colors = getModelColors(tenDigit);
     return {
       background: `linear-gradient(135deg, ${colors.primary}40, ${colors.secondary}40)`,

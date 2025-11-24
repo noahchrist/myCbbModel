@@ -283,7 +283,7 @@ async def delete_model(model_id: int, user_id: str):
         raise HTTPException(status_code=500, detail=f"Error deleting model: {str(e)}")
 
 async def get_model_history(model_id: int, user_id: str = None):
-    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+    db_path = os.environ.get('DB_PATH')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -293,10 +293,11 @@ async def get_model_history(model_id: int, user_id: str = None):
         conn.close()
         raise HTTPException(status_code=404, detail="Model not found")
     
-    # Get prediction history
+    # Get prediction history with all needed fields
     cursor.execute("""
-        SELECT datePredicted, home_team, away_team, fd_home_spread, fd_home_spreadPrice, 
-               fd_away_spread, fd_away_spreadPrice, predicted_pt_diff, unitsBet, unitsWon, w_l
+        SELECT datePredicted, home_team, away_team, bet_type, predicted_pt_diff, predicted_pt_total,
+               fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
+               fd_over, fd_overPrice, fd_under, fd_underPrice, unitsBet, unitsWon, w_l
         FROM modelPredictions 
         WHERE modelId = ? AND is_completed = 1
         ORDER BY datePredicted DESC
@@ -304,17 +305,24 @@ async def get_model_history(model_id: int, user_id: str = None):
     
     predictions = []
     for row in cursor.fetchall():
-        date, home_team, away_team, home_spread, home_price, away_spread, away_price, pred_diff, units_bet, units_won, w_l = row
+        date, home_team, away_team, bet_type, pred_diff, pred_total, home_spread, home_price, away_spread, away_price, over_line, over_price, under_line, under_price, units_bet, units_won, w_l = row
         
-        # Determine which team was picked and format display
-        if pred_diff + home_spread > 0:
-            # Picked home team
-            team_pick = f"{home_team} {home_spread:+.1f}"
-            price = home_price
-        else:
-            # Picked away team  
-            team_pick = f"{away_team} {away_spread:+.1f}"
-            price = away_price
+        if bet_type == 'spread':
+            # Determine which team was picked
+            if pred_diff + home_spread > 0:
+                team_pick = f"{home_team} {home_spread:+.1f}"
+                price = home_price
+            else:
+                team_pick = f"{away_team} {away_spread:+.1f}"
+                price = away_price
+        else:  # bet_type == 'total'
+            # Determine over/under pick
+            if pred_total > over_line:
+                team_pick = f"Over {over_line}"
+                price = over_price
+            else:
+                team_pick = f"Under {under_line}"
+                price = under_price
         
         predictions.append({
             "date": date,

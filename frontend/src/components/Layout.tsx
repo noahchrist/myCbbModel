@@ -21,7 +21,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
   const [authLoading, setAuthLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const showToast = (message, type = 'info') => {
+  const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
       position: 'top-center',
       autoClose: 3000,
@@ -49,17 +49,20 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
     setLoginForm({ email: '', password: '', displayName: '' });
   };
 
-  const signUp = async (email, password, displayName) => {
+  const signUp = async (email: string, password: string, displayName: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: `${window.location.origin}/auth/verified`
+      },
     });
     if (error) throw error;
     return data.user;
   };
 
-  const signIn = async (email, password) => {
+  const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data.user;
@@ -72,15 +75,16 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
       if (isSignUp) {
         await signUp(loginForm.email, loginForm.password, loginForm.displayName);
         showToast('Check your email for verification!', 'success');
+        handleCloseModal();
       } else {
         const user = await signIn(loginForm.email, loginForm.password);
         setUser(user);
         setActiveTab('models');
+        handleCloseModal();
       }
-      handleCloseModal();
     } catch (error) {
       console.error('Auth error:', error);
-      showToast(error.message, 'error');
+      showToast((error as Error).message, 'error');
     } finally {
       setAuthLoading(false);
     }
@@ -96,7 +100,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
     setActiveTab('home');
   };
 
-  const handleNavClick = (tab) => {
+  const handleNavClick = (tab: TabType) => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
   };
@@ -112,11 +116,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
           >
             ☰
           </button>
-          {user ? (
-            <div className="user-menu">
-              <span className="user-name">{user.user_metadata?.display_name || user.email}</span>
-            </div>
-          ) : (
+          {!user && (
             <button onClick={handleLoginClick} className="btn btn-primary">Login</button>
           )}
         </div>
@@ -150,14 +150,6 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
               Account
             </button>
           )}
-          {user && (
-            <button 
-              className="nav-btn logout-btn"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          )}
         </div>
       </nav>
 
@@ -186,17 +178,6 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
             onClick={() => handleNavClick('account')}
           >
             Account
-          </button>
-        )}
-        {user && (
-          <button 
-            className="nav-btn"
-            onClick={() => {
-              handleLogout();
-              setMobileMenuOpen(false);
-            }}
-          >
-            Logout
           </button>
         )}
         {!user && (

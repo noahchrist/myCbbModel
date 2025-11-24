@@ -36,7 +36,7 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
   const [selectedBettingStyle, setSelectedBettingStyle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const showToast = (message, type = 'info') => {
+  const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
       position: 'top-center',
       autoClose: 3000,
@@ -142,10 +142,9 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
       <div className="page-content">
         <div className="create-model-grid">
           <div className="sliders-card">
-            <h2>Model Configuration</h2>
+            <h2 style={{ borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Feature Configuration</h2>
             <div className="sliders-grid">
               <div className="slider-column">
-                <h3>Offensive</h3>
                 {sliders.filter(s => [1, 3, 4, 5, 9].includes(s.id)).map(slider => (
                   <div key={slider.id} className="slider-item">
                     <div className="slider-header">
@@ -166,7 +165,6 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
               </div>
               
               <div className="slider-column">
-                <h3>Defensive</h3>
                 {sliders.filter(s => [2, 6, 7, 8, 10].includes(s.id)).map(slider => (
                   <div key={slider.id} className="slider-item">
                     <div className="slider-header">
@@ -189,10 +187,9 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
           </div>
 
           <div className="model-options-card">
-            <h2>Model Options</h2>
             
             <div className="form-section">
-              <h3>Model Name</h3>
+              <h3 style={{ borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem' }}>Model Name</h3>
               {modelNames.map((name, index) => (
                 <label key={index} className="radio-option">
                   <input
@@ -208,7 +205,7 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
             </div>
             
             <div className="form-section">
-              <h3>Betting Style</h3>
+              <h3 style={{ borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem' }}>Betting Style</h3>
               {['Aggressive', 'Moderate', 'Reserved'].map(style => (
                 <label key={style} className="radio-option">
                   <input

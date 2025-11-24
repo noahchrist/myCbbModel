@@ -18,13 +18,13 @@ const CommunityPage = () => {
   const [communityModels, setCommunityModels] = useState<CommunityModel[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const getModelColors = (tenDigit) => {
+  const getModelColors = (tenDigit: number) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
     const digits = tenDigit.toString().padStart(10, '0');
     const first6 = digits.slice(0, 6);
     const last6 = digits.slice(-6);
     
-    const adjustColor = (hex) => {
+    const adjustColor = (hex: string) => {
       const num = parseInt(hex, 16);
       const r = (num >> 16) & 255;
       const g = (num >> 8) & 255;
@@ -45,7 +45,7 @@ const CommunityPage = () => {
     };
   };
 
-  const getModelStyle = (tenDigit) => {
+  const getModelStyle = (tenDigit: number) => {
     const colors = getModelColors(tenDigit);
     return {
       background: `linear-gradient(135deg, ${colors.primary}40, ${colors.secondary}40), var(--background)`,

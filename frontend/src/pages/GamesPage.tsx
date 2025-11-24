@@ -28,7 +28,7 @@ const GamesPage = () => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchGames = async (date) => {
+  const fetchGames = async (date: string) => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/games/${date}`);
@@ -42,7 +42,7 @@ const GamesPage = () => {
     }
   };
 
-  const changeDate = (days) => {
+  const changeDate = (days: number) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + days);
     const dateString = newDate.toISOString().split('T')[0];

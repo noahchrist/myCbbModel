@@ -30,7 +30,7 @@ const ModelHistoryPage = ({ user, modelId, modelName, onBack, onDelete }: ModelH
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const showToast = (message, type = 'info') => {
+  const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
       position: 'top-center',
       autoClose: 3000,

@@ -6,12 +6,16 @@ import GamesPage from './pages/GamesPage';
 import ModelsPage from './pages/ModelsPage';
 import CommunityPage from './pages/CommunityPage';
 import AccountPage from './pages/AccountPage';
+import VerifiedPage from './pages/VerifiedPage';
 
 type TabType = 'home' | 'models' | 'community' | 'account';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [user, setUser] = useState<User | null>(null);
+
+  // Check if we're on the verification page
+  const isVerificationPage = window.location.pathname === '/auth/verified';
 
   useEffect(() => {
     // Check for existing session
@@ -36,11 +40,16 @@ const App = () => {
       case 'community':
         return <CommunityPage />;
       case 'account':
-        return <AccountPage user={user} />;
+        return <AccountPage user={user} onLogout={() => { setUser(null); setActiveTab('home'); }} />;
       default:
         return <GamesPage />;
     }
   };
+
+  // Show verification page if on that route
+  if (isVerificationPage) {
+    return <VerifiedPage />;
+  }
 
   return (
     <Layout 
