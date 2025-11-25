@@ -336,12 +336,12 @@ try:
             # Save top 5 predictions
             logger.info("Saving predictions")
             for i, edge_data in enumerate(top_5_edges, 1):
-                row = edge_data['row_data']
+                row_with_odds = edge_data['row_data']
                 units_bet = get_units_to_bet(betting_style, i)
                 
                 # Generate summary based on bet type
-                home_team = row['home_team']
-                away_team = row['away_team']
+                home_team = row_with_odds['home_team']
+                away_team = row_with_odds['away_team']
                 
                 verbs = ["has", "estimates", "forecasts", "expects", "indicates", "suggests", "outputs", "computes", "rates", "shows", "returns", "signals", "grades", "sees", "likes", "backs", "supports", "thinks", "points to", "calls for", "goes with", "is on", "leans toward"]
                 verb = np.random.choice(verbs)
@@ -361,7 +361,7 @@ try:
                 summary = f"{model_name} {verb} {prediction_text} // {pick_text}"
                 
                 # Use game_date from row data
-                game_date = row['game_date']
+                game_date = row_with_odds['game_date']
                 
                 cursor.execute("""
                     INSERT INTO modelPredictions 
@@ -373,19 +373,19 @@ try:
                 """, (
                     datetime.now().date().isoformat(),
                     model_id,
-                    row['game_id'],
+                    row_with_odds['game_id'],
                     game_date,
                     False,
-                    row['home_team'],
-                    row['away_team'],
-                    row.get('fd_home_spread'),
-                    row.get('fd_home_spreadPrice'),
-                    row.get('fd_away_spread'),
-                    row.get('fd_away_spreadPrice'),
-                    row.get('fd_over'),
-                    row.get('fd_overPrice'),
-                    row.get('fd_under'),
-                    row.get('fd_underPrice'),
+                    row_with_odds['home_team'],
+                    row_with_odds['away_team'],
+                    row_with_odds.get('fd_home_spread'),
+                    row_with_odds.get('fd_home_spreadPrice'),
+                    row_with_odds.get('fd_away_spread'),
+                    row_with_odds.get('fd_away_spreadPrice'),
+                    row_with_odds.get('fd_over'),
+                    row_with_odds.get('fd_overPrice'),
+                    row_with_odds.get('fd_under'),
+                    row_with_odds.get('fd_underPrice'),
                     edge_data.get('pred_pt_diff'),
                     edge_data.get('pred_pt_total'),
                     edge_data['bet_type'],
