@@ -14,8 +14,34 @@ interface CommunityModel {
   roi: number;
 }
 
+interface Bet {
+  gameId: string;
+  pick: string;
+  unitsBet: number;
+  homeTeam: string;
+  awayTeam: string;
+  prices: {
+    homeSpread: number;
+    awaySpread: number;
+    over: number;
+    under: number;
+  };
+}
+
+interface TopPick {
+  pick: string;
+  totalUnits: number;
+  price: number;
+}
+
+interface PickData {
+  totalUnits: number;
+  price: number;
+}
+
 const CommunityPage = () => {
   const [communityModels, setCommunityModels] = useState<CommunityModel[]>([]);
+  const [topPicks, setTopPicks] = useState<TopPick[]>([]);
   const [loading, setLoading] = useState(true);
 
   const getModelColors = (tenDigit: number) => {
@@ -63,31 +89,94 @@ const CommunityPage = () => {
       setCommunityModels(data.models || []);
     } catch (error) {
       console.error('Error fetching community models:', error);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchTopPicks = async () => {
+    try {
+      const response = await fetch(`${API_URL}/todays-top-picks`);
+      const data = await response.json();
+      const bets: Bet[] = data.bets || [];
+      
+      // Aggregate bets by pick
+      const pickMap = new Map<string, PickData>();
+      
+      bets.forEach(bet => {
+        if (bet.pick) {
+          const existing = pickMap.get(bet.pick);
+          if (existing) {
+            existing.totalUnits += bet.unitsBet;
+          } else {
+            // Format pick with team names for totals and determine price
+            let formattedPick = bet.pick;
+            let price = 0;
+            
+            if (bet.pick.includes('Over') || bet.pick.includes('Under')) {
+              formattedPick = `${bet.homeTeam} vs ${bet.awayTeam} ${bet.pick}`;
+              price = bet.pick.includes('Over') ? bet.prices.over : bet.prices.under;
+            } else {
+              // Spread bet
+              price = bet.prices.homeSpread || bet.prices.awaySpread;
+            }
+            
+            pickMap.set(formattedPick, {
+              totalUnits: bet.unitsBet,
+              price: price
+            });
+          }
+        }
+      });
+      
+      // Convert to array and sort by total units
+      const aggregatedPicks = Array.from(pickMap.entries())
+        .map(([pick, data]) => ({
+          pick,
+          totalUnits: data.totalUnits,
+          price: data.price
+        }))
+        .sort((a, b) => b.totalUnits - a.totalUnits)
+        .slice(0, 5);
+      
+      setTopPicks(aggregatedPicks);
+    } catch (error) {
+      console.error('Error fetching top picks:', error);
     }
   };
 
   useEffect(() => {
-    fetchCommunityModels();
+    const fetchData = async () => {
+      await Promise.all([fetchCommunityModels(), fetchTopPicks()]);
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h1>Community Models</h1>
-      </div>
-
       <div className="page-content">
         <div className="top-picks-section">
           <h2>Today's Top Picks</h2>
-          <div className="coming-soon">
-            <p>Picks coming soon...</p>
-          </div>
+          {loading ? (
+            <div className="loading">Loading picks...</div>
+          ) : topPicks.length === 0 ? (
+            <div className="empty-state">No picks available for today</div>
+          ) : (
+            <div className="picks-list">
+              {topPicks.map((pick, index) => (
+                <div key={index} className="pick-row">
+                  <div className="pick-info">
+                    <span className="pick-name">{pick.pick}</span>
+                    <span className="pick-price">({pick.price > 0 ? '+' : ''}{pick.price})</span>
+                  </div>
+                  <div className="pick-units">{pick.totalUnits} units</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="community-models-section">
-          <h2>All Models</h2>
+          <h2>Community Models</h2>
           {loading ? (
             <div className="loading">Loading community models...</div>
           ) : communityModels.length === 0 ? (

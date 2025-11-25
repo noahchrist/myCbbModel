@@ -335,3 +335,46 @@ async def get_model_history(model_id: int, user_id: str = None):
     conn.close()
     return {"predictions": predictions}
 
+async def get_todays_top_picks():
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Get today's date
+    from datetime import date
+    today = date.today().isoformat()
+    
+    # Get all today's predictions with game_id, summary, teams, and all prices
+    cursor.execute("""
+        SELECT game_id, summary, unitsBet, home_team, away_team,
+               fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
+        FROM modelPredictions 
+        WHERE datePredicted = ? AND is_completed = 0
+    """, (today,))
+    
+    bets = []
+    for row in cursor.fetchall():
+        game_id, summary, units_bet, home_team, away_team, home_spread_price, away_spread_price, over_price, under_price = row
+        
+        # Extract pick from summary (text after 'Pick:')
+        pick = ""
+        if summary and "Pick:" in summary:
+            pick = summary.split("Pick:")[1].strip()
+        
+        bets.append({
+            "gameId": game_id,
+            "pick": pick,
+            "unitsBet": units_bet,
+            "homeTeam": home_team,
+            "awayTeam": away_team,
+            "prices": {
+                "homeSpread": home_spread_price,
+                "awaySpread": away_spread_price,
+                "over": over_price,
+                "under": under_price
+            }
+        })
+    
+    conn.close()
+    return {"bets": bets}
+

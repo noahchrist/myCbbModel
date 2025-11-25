@@ -12,7 +12,7 @@ from .auth import get_current_user, sync_user_in_local_db, UserCreate
 from .games import get_games_by_date
 from .models import (
     get_model_names, get_user_models, create_model, 
-    get_community_models, delete_model, get_model_history, ModelCreate
+    get_community_models, delete_model, get_model_history, get_todays_top_picks, ModelCreate
 )
 
 load_dotenv()
@@ -86,6 +86,10 @@ async def create_new_model(request: ModelCreate, user_id: str = Depends(get_user
 @app.get("/community-models")
 async def community_models():
     return await get_community_models()
+
+@app.get("/todays-top-picks")
+async def todays_top_picks():
+    return await get_todays_top_picks()
 
 @app.get("/model-history/{model_id}")
 async def model_history(model_id: int, request: Request):
