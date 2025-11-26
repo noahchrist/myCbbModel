@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from logger import get_logger
 
@@ -27,9 +28,10 @@ try:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get today's date
-    today = datetime.now().strftime('%Y-%m-%d')
-    logger.info(f"Creating target dataset for {today}")
+    # Get today's date in Eastern US time
+    eastern = ZoneInfo("America/New_York")
+    today = datetime.now(eastern).strftime('%Y-%m-%d')
+    logger.info(f"Creating target dataset for {today} (Eastern time)")
     
     # Create setTarget2026 table with game_id as primary key
     cursor.execute("""
