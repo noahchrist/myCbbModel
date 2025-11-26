@@ -4,6 +4,7 @@ import sqlite3
 import requests
 import numpy as np
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from logger import get_logger
 
@@ -299,7 +300,8 @@ try:
                 logger.warning(f"Zero std dev for {field}, using std=1.0")
     
     logger.info("Inserting normalized records...")
-    current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    eastern = ZoneInfo("America/New_York")
+    current_datetime = datetime.now(eastern).strftime('%Y-%m-%d %H:%M:%S')
 
     # Insert normalized records
     for i, record in enumerate(records, 1):

@@ -4,6 +4,7 @@ import numpy as np
 import joblib
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from logger import get_logger
 
@@ -213,8 +214,9 @@ try:
         """Main function to run daily predictions for all models"""
         logger.info("Starting daily predictions")
         
-        # Get today's date
-        today = datetime.now().strftime('%Y-%m-%d')
+        # Get today's date in Eastern time
+        eastern = ZoneInfo("America/New_York")
+        today = datetime.now(eastern).strftime('%Y-%m-%d')
         
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -338,7 +340,7 @@ try:
             
             # Clear existing predictions for this model today
             cursor.execute("DELETE FROM modelPredictions WHERE modelId = ? AND datePredicted = ?", 
-                          (model_id, datetime.now().date().isoformat()))
+                          (model_id, datetime.now(eastern).date().isoformat()))
             
             # Save top 5 predictions
             logger.info("Saving predictions")
@@ -378,7 +380,7 @@ try:
                      predicted_pt_diff, predicted_pt_total, bet_type, edge, unitsBet, summary)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    datetime.now().date().isoformat(),
+                    datetime.now(eastern).date().isoformat(),
                     model_id,
                     row_with_odds['game_id'],
                     game_date,

@@ -4,6 +4,7 @@ import sqlite3
 import os
 import random
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -161,7 +162,7 @@ async def create_model(request: ModelCreate, user_id: str):
                 weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
                 weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, request.modelName, datetime.now().isoformat(), model_seed, 
+            (user_id, request.modelName, datetime.now(ZoneInfo("America/New_York")).isoformat(), model_seed, 
              request.bettingStyle, request.tenDigit, combined_paths,
              request.weights['weightGenOff'], request.weights['weightGenDef'], 
              request.weights['weightPace'], request.weights['weightThrees'], 
@@ -340,9 +341,9 @@ async def get_todays_top_picks():
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Get today's date
-    from datetime import date
-    today = date.today().isoformat()
+    # Get today's date in Eastern time
+    eastern = ZoneInfo("America/New_York")
+    today = datetime.now(eastern).date().isoformat()
     
     # Get all today's predictions with game_id, summary, teams, and all prices
     cursor.execute("""

@@ -2,6 +2,7 @@ import requests
 import sqlite3
 import os
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from logger import get_logger
 
@@ -254,7 +255,7 @@ try:
                     dk_over, dk_overPrice, dk_under, dk_underPrice
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                datetime.now(), game_id, est_time, game_date,
+                datetime.now(ZoneInfo("America/New_York")), game_id, est_time, game_date,
                 home_kpid, away_kpid, home_team, away_team,
                 fd_odds.get('fd_home_hhPrice'), fd_odds.get('fd_away_hhPrice'),
                 fd_odds.get('fd_home_spread'), fd_odds.get('fd_home_spreadPrice'),
@@ -343,7 +344,7 @@ try:
                             home_score, away_score, pt_diff, pt_total
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        datetime.now(), game_id, est_time, game_date, 1,
+                        datetime.now(ZoneInfo("America/New_York")), game_id, est_time, game_date, 1,
                         home_kpid, away_kpid, home_team, away_team,
                         home_score, away_score, pt_diff, pt_total
                     ))

@@ -6,6 +6,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import numpy as np
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -195,8 +196,9 @@ def main():
     else:
         print("✅ No bias will be applied")
     
-    # Get today's date
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Get today's date in Eastern time
+    eastern = ZoneInfo("America/New_York")
+    today = datetime.now(eastern).strftime('%Y-%m-%d')
     
     # Check if games exist for today in setTarget2026
     conn = sqlite3.connect(MASTER_DB_PATH)
