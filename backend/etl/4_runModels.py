@@ -108,13 +108,31 @@ try:
         cursor = conn.cursor()
         
         # Process spread predictions
-        for _, row in df_spread.iterrows():
+        for i, (_, row) in enumerate(df_spread.iterrows()):
+            # Fix: Extract the actual value from the pandas Series
+            if isinstance(row['game_id'], pd.Series):
+                game_id = str(row['game_id'].iloc[0])
+            else:
+                game_id = str(row['game_id'])
+            
+            # Log first game for debugging
+            if i == 0:
+                logger.info(f"First game being processed: {game_id} ({row['home_team']} vs {row['away_team']})")
+                
+                # Check what's in games2026 for this game_id
+                cursor.execute("SELECT game_id, is_completed, fd_home_spread, fd_over FROM games2026 WHERE game_id = ?", (game_id,))
+                debug_result = cursor.fetchone()
+                if debug_result:
+                    logger.info(f"Found in games2026: game_id={debug_result[0]}, is_completed={debug_result[1]}, fd_home_spread={debug_result[2]}, fd_over={debug_result[3]}")
+                else:
+                    logger.info(f"Game {game_id} NOT found in games2026")
+            
             cursor.execute("""
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
             WHERE game_id = ? AND is_completed = 0
-            """, (str(row['game_id']),))
+            """, (game_id,))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[1]):
@@ -132,7 +150,14 @@ try:
                     pick_team = row['away_team']
                     pick_spread = -home_spread
                 
-                row_with_odds = row.copy()
+                # Convert pandas Series to dict with proper Python types
+                row_with_odds = {}
+                for key, value in row.items():
+                    if isinstance(value, pd.Series):
+                        row_with_odds[key] = value.iloc[0] if len(value) > 0 else None
+                    else:
+                        row_with_odds[key] = value
+                        
                 row_with_odds['game_id'] = game_id
                 row_with_odds['fd_home_spread'] = fd_home_spread
                 row_with_odds['fd_home_spreadPrice'] = fd_home_spreadPrice
@@ -155,12 +180,18 @@ try:
         
         # Process total predictions
         for _, row in df_total.iterrows():
+            # Fix: Extract the actual value from the pandas Series
+            if isinstance(row['game_id'], pd.Series):
+                game_id = str(row['game_id'].iloc[0])
+            else:
+                game_id = str(row['game_id'])
+                
             cursor.execute("""
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
             WHERE game_id = ? AND is_completed = 0
-            """, (str(row['game_id']),))
+            """, (game_id,))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[5]):  # Check fd_over exists
@@ -178,7 +209,14 @@ try:
                     pick_total = 'Under'
                     pick_line = total_line
                 
-                row_with_odds = row.copy()
+                # Convert pandas Series to dict with proper Python types
+                row_with_odds = {}
+                for key, value in row.items():
+                    if isinstance(value, pd.Series):
+                        row_with_odds[key] = value.iloc[0] if len(value) > 0 else None
+                    else:
+                        row_with_odds[key] = value
+                        
                 row_with_odds['game_id'] = game_id
                 row_with_odds['fd_home_spread'] = fd_home_spread
                 row_with_odds['fd_home_spreadPrice'] = fd_home_spreadPrice
