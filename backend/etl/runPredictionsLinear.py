@@ -31,7 +31,7 @@ def run_model(model_type, target_table, game_date=None, total_bias=0):
     df_train = pd.read_sql(f"SELECT * FROM {TRAIN_TABLE}", conn)
 
     drop_cols = [
-        "id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team",
+        "id", "home_id", "away_id", "home_kpid", "away_kpid", "home_score", "away_score", "home_team", "away_team",
         "win_loss", "pt_diff", "pt_total", "date", "season"
     ]
     feature_cols = [c for c in df_train.columns if c not in drop_cols]

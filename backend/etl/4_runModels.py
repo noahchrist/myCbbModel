@@ -112,8 +112,8 @@ try:
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
-            WHERE home_kpid = ? AND away_kpid = ? AND game_date = ? AND is_completed = 0
-            """, (row['home_kpid'], row['away_kpid'], row['game_date']))
+            WHERE game_id = ? AND is_completed = 0
+            """, (row['game_id'],))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[1]):
@@ -158,8 +158,8 @@ try:
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
-            WHERE home_kpid = ? AND away_kpid = ? AND game_date = ? AND is_completed = 0
-            """, (row['home_kpid'], row['away_kpid'], row['game_date']))
+            WHERE game_id = ? AND is_completed = 0
+            """, (row['game_id'],))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[5]):  # Check fd_over exists
@@ -228,9 +228,13 @@ try:
         
         logger.info(f"Total bias calculation: Current avg {current_avg:.2f} - Historical avg {historical_avg} = {total_bias:.2f}")
         
-        # Load baseline target data from setTarget2026 for today
+        # Load baseline target data from setTarget2026 for today (only upcoming games)
         logger.info(f"Loading baseline target data from setTarget2026 for {today}")
-        baseline_df = pd.read_sql("SELECT * FROM setTarget2026 WHERE game_date = ?", conn, params=(today,))
+        baseline_df = pd.read_sql("""
+            SELECT st.*, g.game_id FROM setTarget2026 st
+            INNER JOIN games2026 g ON st.home_kpid = g.home_kpid AND st.away_kpid = g.away_kpid AND st.game_date = g.game_date
+            WHERE st.game_date = ? AND g.is_completed = 0
+        """, conn, params=(today,))
         
         if len(baseline_df) == 0:
             logger.error(f"No games found in setTarget2026 for {today}")
@@ -289,7 +293,7 @@ try:
             
             # Get training feature columns from setAlpha to match model training
             df_train = pd.read_sql("SELECT * FROM setAlpha LIMIT 1", conn)
-            drop_cols = ["id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "game_date"]
+            drop_cols = ["id", "home_score", "away_score", "home_team", "away_team", "home_kpid", "away_kpid", "win_loss", "pt_diff", "pt_total", "date", "season", "game_date"]
             feature_cols = [c for c in df_train.columns if c not in drop_cols]
             
             # Ensure target data has all training features in same order
