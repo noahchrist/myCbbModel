@@ -113,7 +113,7 @@ try:
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
             WHERE game_id = ? AND is_completed = 0
-            """, (row['game_id'],))
+            """, (str(row['game_id']),))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[1]):
@@ -159,7 +159,7 @@ try:
                    fd_over, fd_overPrice, fd_under, fd_underPrice
             FROM games2026 
             WHERE game_id = ? AND is_completed = 0
-            """, (row['game_id'],))
+            """, (str(row['game_id']),))
             
             game_odds = cursor.fetchone()
             if game_odds and pd.notna(game_odds[5]):  # Check fd_over exists
