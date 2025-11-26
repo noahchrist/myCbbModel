@@ -293,8 +293,11 @@ try:
             
             # Get training feature columns from setAlpha to match model training
             df_train = pd.read_sql("SELECT * FROM setAlpha LIMIT 1", conn)
-            drop_cols = ["id", "home_score", "away_score", "home_team", "away_team", "home_kpid", "away_kpid", "win_loss", "pt_diff", "pt_total", "date", "season", "game_date"]
+            drop_cols = ["id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "game_date"]
             feature_cols = [c for c in df_train.columns if c not in drop_cols]
+            
+            # TODO: Remove this after recreating models - temporarily keep kpid columns for existing models
+            # This prevents "Feature names should match" error for models trained with kpid columns
             
             # Ensure target data has all training features in same order
             for col in feature_cols:
