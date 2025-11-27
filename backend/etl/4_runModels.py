@@ -115,17 +115,7 @@ try:
             else:
                 game_id = str(row['game_id'])
             
-            # Log first game for debugging
-            if i == 0:
-                logger.info(f"First game being processed: {game_id} ({row['home_team']} vs {row['away_team']})")
-                
-                # Check what's in games2026 for this game_id
-                cursor.execute("SELECT game_id, is_completed, fd_home_spread, fd_over FROM games2026 WHERE game_id = ?", (game_id,))
-                debug_result = cursor.fetchone()
-                if debug_result:
-                    logger.info(f"Found in games2026: game_id={debug_result[0]}, is_completed={debug_result[1]}, fd_home_spread={debug_result[2]}, fd_over={debug_result[3]}")
-                else:
-                    logger.info(f"Game {game_id} NOT found in games2026")
+
             
             cursor.execute("""
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,

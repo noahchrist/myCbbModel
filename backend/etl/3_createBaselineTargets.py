@@ -114,14 +114,16 @@ try:
     kenpom_table = "kenpom2026"
     logger.info(f"Using KenPom table: {kenpom_table}")
     
-    # Get today's upcoming games
+    # Get today's upcoming games with named columns
     cursor.execute("""
     SELECT game_id, commence_time, season, game_date, home_team, away_team, home_kpid, away_kpid
     FROM games2026 
     WHERE game_date = ? AND is_completed = 0
     """, (today,))
     
-    games = cursor.fetchall()
+    # Convert to list of dictionaries for safer column access
+    columns = ['game_id', 'commence_time', 'season', 'game_date', 'home_team', 'away_team', 'home_kpid', 'away_kpid']
+    games = [dict(zip(columns, row)) for row in cursor.fetchall()]
     logger.info(f"Found {len(games)} upcoming games for today")
     
     processed = 0
@@ -129,7 +131,7 @@ try:
     inserted = 0
     
     for game in games:
-        game_id = game[0]
+        game_id = game['game_id']
         
         # Check if game already exists in setTarget2026
         cursor.execute("SELECT game_id FROM setTarget2026 WHERE game_id = ?", (game_id,))
@@ -144,26 +146,41 @@ try:
             # Game exists and is completed - skip it
             continue
             
-        # Get KenPom data for both teams
-        cursor.execute(f"""
-        SELECT adjOffEff, adjDefEff, adjTempo, effFgPct, defEffFgPct, trnvrPct, ftRate, defFtRate,
-               offRebPct, defRebPct, effHeight, expRtg, benchRtg, contRtg, threesPct, ftPct,
-               blockPct, stlRate, nonStlTrnvrRate, astRate, threesRate, oppThreesPct, oppThreesRate
-        FROM {kenpom_table} WHERE kpid = ?
-        """, (game[6],))  # home_kpid
-        home_stats = cursor.fetchone()
+        # Extract team identifiers and names from game dictionary
+        home_kpid = game['home_kpid']
+        away_kpid = game['away_kpid']
+        home_team = game['home_team']
+        away_team = game['away_team']
         
+        # Query KenPom stats for home team with named column mapping
         cursor.execute(f"""
         SELECT adjOffEff, adjDefEff, adjTempo, effFgPct, defEffFgPct, trnvrPct, ftRate, defFtRate,
                offRebPct, defRebPct, effHeight, expRtg, benchRtg, contRtg, threesPct, ftPct,
                blockPct, stlRate, nonStlTrnvrRate, astRate, threesRate, oppThreesPct, oppThreesRate
         FROM {kenpom_table} WHERE kpid = ?
-        """, (game[7],))  # away_kpid
-        away_stats = cursor.fetchone()
+        """, (home_kpid,))
+        home_stats_raw = cursor.fetchone()
+        
+        # Query KenPom stats for away team with named column mapping
+        cursor.execute(f"""
+        SELECT adjOffEff, adjDefEff, adjTempo, effFgPct, defEffFgPct, trnvrPct, ftRate, defFtRate,
+               offRebPct, defRebPct, effHeight, expRtg, benchRtg, contRtg, threesPct, ftPct,
+               blockPct, stlRate, nonStlTrnvrRate, astRate, threesRate, oppThreesPct, oppThreesRate
+        FROM {kenpom_table} WHERE kpid = ?
+        """, (away_kpid,))
+        away_stats_raw = cursor.fetchone()
+        
+        # Convert stats tuples to dictionaries for safer column access
+        home_stats_columns = ['adjOffEff', 'adjDefEff', 'adjTempo', 'effFgPct', 'defEffFgPct', 'trnvrPct', 'ftRate', 'defFtRate',
+                             'offRebPct', 'defRebPct', 'effHeight', 'expRtg', 'benchRtg', 'contRtg', 'threesPct', 'ftPct',
+                             'blockPct', 'stlRate', 'nonStlTrnvrRate', 'astRate', 'threesRate', 'oppThreesPct', 'oppThreesRate']
+        
+        home_stats = dict(zip(home_stats_columns, home_stats_raw)) if home_stats_raw else None
+        away_stats = dict(zip(home_stats_columns, away_stats_raw)) if away_stats_raw else None
         
         if home_stats and away_stats:
             if existing_game:
-                # Update existing record
+                # Update existing incomplete game record with current KenPom data
                 cursor.execute("""
                 UPDATE setTarget2026 SET
                     home_kpid = ?, away_kpid = ?, date = ?, season = ?, home_team = ?, away_team = ?,
@@ -181,24 +198,27 @@ try:
                     away_expRtg = ?, away_benchRtg = ?, away_contRtg = ?, game_date = ?
                 WHERE game_id = ?
                 """, (
-                    game[6], game[7], game[3], int(game[2]), game[4], game[5],
-                    home_stats[0], home_stats[3], home_stats[1], home_stats[4],
-                    home_stats[2], home_stats[14], home_stats[20], home_stats[6],
-                    home_stats[15], home_stats[7], home_stats[16], home_stats[21],
-                    home_stats[22], home_stats[17], home_stats[18], home_stats[8],
-                    home_stats[9], home_stats[19], home_stats[5], home_stats[10],
-                    home_stats[11], home_stats[12], home_stats[13],
-                    away_stats[0], away_stats[3], away_stats[1], away_stats[4],
-                    away_stats[2], away_stats[14], away_stats[20], away_stats[6],
-                    away_stats[15], away_stats[7], away_stats[16], away_stats[21],
-                    away_stats[22], away_stats[17], away_stats[18], away_stats[8],
-                    away_stats[9], away_stats[19], away_stats[5], away_stats[10],
-                    away_stats[11], away_stats[12], away_stats[13], game[3],
+                    # Game metadata using named access
+                    game['home_kpid'], game['away_kpid'], game['game_date'], int(game['season']), game['home_team'], game['away_team'],
+                    # Home team stats using named dictionary access
+                    home_stats['adjOffEff'], home_stats['effFgPct'], home_stats['adjDefEff'], home_stats['defEffFgPct'],
+                    home_stats['adjTempo'], home_stats['threesPct'], home_stats['threesRate'], home_stats['ftRate'],
+                    home_stats['ftPct'], home_stats['defFtRate'], home_stats['blockPct'], home_stats['oppThreesPct'],
+                    home_stats['oppThreesRate'], home_stats['stlRate'], home_stats['nonStlTrnvrRate'], home_stats['offRebPct'],
+                    home_stats['defRebPct'], home_stats['astRate'], home_stats['trnvrPct'], home_stats['effHeight'],
+                    home_stats['expRtg'], home_stats['benchRtg'], home_stats['contRtg'],
+                    # Away team stats using named dictionary access
+                    away_stats['adjOffEff'], away_stats['effFgPct'], away_stats['adjDefEff'], away_stats['defEffFgPct'],
+                    away_stats['adjTempo'], away_stats['threesPct'], away_stats['threesRate'], away_stats['ftRate'],
+                    away_stats['ftPct'], away_stats['defFtRate'], away_stats['blockPct'], away_stats['oppThreesPct'],
+                    away_stats['oppThreesRate'], away_stats['stlRate'], away_stats['nonStlTrnvrRate'], away_stats['offRebPct'],
+                    away_stats['defRebPct'], away_stats['astRate'], away_stats['trnvrPct'], away_stats['effHeight'],
+                    away_stats['expRtg'], away_stats['benchRtg'], away_stats['contRtg'], game['game_date'],
                     game_id
                 ))
                 updated += 1
             else:
-                # Insert new record
+                # Insert new game record with KenPom data for upcoming game
                 cursor.execute("""
                 INSERT INTO setTarget2026 (
                     game_id, home_kpid, away_kpid, is_home, is_neutral, date, season, home_team, home_score, away_team, away_score,
@@ -216,26 +236,29 @@ try:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    game_id, game[6], game[7], 1, 0, game[3], int(game[2]), game[4], None, game[5], None,
+                    # Game metadata - scores/results are None for upcoming games
+                    game_id, game['home_kpid'], game['away_kpid'], 1, 0, game['game_date'], int(game['season']), game['home_team'], None, game['away_team'], None,
                     None, None, None,
-                    home_stats[0], home_stats[3], home_stats[1], home_stats[4],
-                    home_stats[2], home_stats[14], home_stats[20], home_stats[6],
-                    home_stats[15], home_stats[7], home_stats[16], home_stats[21],
-                    home_stats[22], home_stats[17], home_stats[18], home_stats[8],
-                    home_stats[9], home_stats[19], home_stats[5], home_stats[10],
-                    home_stats[11], home_stats[12], home_stats[13],
-                    away_stats[0], away_stats[3], away_stats[1], away_stats[4],
-                    away_stats[2], away_stats[14], away_stats[20], away_stats[6],
-                    away_stats[15], away_stats[7], away_stats[16], away_stats[21],
-                    away_stats[22], away_stats[17], away_stats[18], away_stats[8],
-                    away_stats[9], away_stats[19], away_stats[5], away_stats[10],
-                    away_stats[11], away_stats[12], away_stats[13], game[3]
+                    # Home team KenPom stats using named dictionary access
+                    home_stats['adjOffEff'], home_stats['effFgPct'], home_stats['adjDefEff'], home_stats['defEffFgPct'],
+                    home_stats['adjTempo'], home_stats['threesPct'], home_stats['threesRate'], home_stats['ftRate'],
+                    home_stats['ftPct'], home_stats['defFtRate'], home_stats['blockPct'], home_stats['oppThreesPct'],
+                    home_stats['oppThreesRate'], home_stats['stlRate'], home_stats['nonStlTrnvrRate'], home_stats['offRebPct'],
+                    home_stats['defRebPct'], home_stats['astRate'], home_stats['trnvrPct'], home_stats['effHeight'],
+                    home_stats['expRtg'], home_stats['benchRtg'], home_stats['contRtg'],
+                    # Away team KenPom stats using named dictionary access
+                    away_stats['adjOffEff'], away_stats['effFgPct'], away_stats['adjDefEff'], away_stats['defEffFgPct'],
+                    away_stats['adjTempo'], away_stats['threesPct'], away_stats['threesRate'], away_stats['ftRate'],
+                    away_stats['ftPct'], away_stats['defFtRate'], away_stats['blockPct'], away_stats['oppThreesPct'],
+                    away_stats['oppThreesRate'], away_stats['stlRate'], away_stats['nonStlTrnvrRate'], away_stats['offRebPct'],
+                    away_stats['defRebPct'], away_stats['astRate'], away_stats['trnvrPct'], away_stats['effHeight'],
+                    away_stats['expRtg'], away_stats['benchRtg'], away_stats['contRtg'], game['game_date']
                 ))
                 inserted += 1
             
             processed += 1
         else:
-            logger.warning(f"Missing KenPom data for game {game_id}: {game[4]} vs {game[5]}")
+            logger.warning(f"Missing KenPom data for game {game_id}: {game['home_team']} vs {game['away_team']}")
     
     conn.commit()
     
