@@ -91,6 +91,7 @@ const GamesPage = () => {
   return (
     <div className="page">
       <div className="page-header">
+        <h2>Games</h2>
         <div className="date-nav">
           <button onClick={() => changeDate(-1)} className="btn btn-outline">←</button>
           <h2 className="date-title">
@@ -124,18 +125,7 @@ const GamesPage = () => {
                 <div className="games-row">
                   {timeGames.map((game, index) => (
                     <div key={index} className="game-card">
-                <div className="game-header">
-                  <div className="game-status">
-                    {game.home_score !== null ? 'Final' : 'Scheduled'}
-                  </div>
-                </div>
-                
                 <div className="game-odds">
-                  <div className="odds-header"></div>
-                  <div className="odds-header">Moneyline</div>
-                  <div className="odds-header">Spread</div>
-                  <div className="odds-header">Total</div>
-                  
                   <div className={`odds-team-label ${isGameCompleted(game) && getBettingResults(game).moneyline?.awayWins ? 'winner' : ''}`}>
                     {game.away_team} {game.away_score !== null ? `(${game.away_score})` : ''}
                   </div>

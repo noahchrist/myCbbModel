@@ -17,9 +17,10 @@ interface CommunityModel {
 interface Bet {
   gameId: string;
   pick: string;
-  unitsBet: number;
+  edge: number;
   homeTeam: string;
   awayTeam: string;
+  wl: string | null;
   prices: {
     homeSpread: number;
     awaySpread: number;
@@ -30,19 +31,27 @@ interface Bet {
 
 interface TopPick {
   pick: string;
-  totalUnits: number;
+  totalEdge: number;
+  modelCount: number;
   price: number;
+  result: string | null;
 }
 
 interface PickData {
-  totalUnits: number;
+  totalEdge: number;
+  modelCount: number;
   price: number;
+  result: string | null;
 }
 
 const CommunityPage = () => {
   const [communityModels, setCommunityModels] = useState<CommunityModel[]>([]);
   const [topPicks, setTopPicks] = useState<TopPick[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
 
   const getModelColors = (tenDigit: number) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
@@ -92,49 +101,73 @@ const CommunityPage = () => {
     }
   };
 
-  const fetchTopPicks = async () => {
+  const fetchTopPicks = async (date: string) => {
     try {
-      const response = await fetch(`${API_URL}/todays-top-picks`);
+      const response = await fetch(`${API_URL}/todays-top-picks?date=${date}`);
       const data = await response.json();
       const bets: Bet[] = data.bets || [];
       
-      // Aggregate bets by pick
+      // Aggregate bets by unique pick (gameId + pick combination)
       const pickMap = new Map<string, PickData>();
       
       bets.forEach(bet => {
-        if (bet.pick) {
-          const existing = pickMap.get(bet.pick);
-          if (existing) {
-            existing.totalUnits += bet.unitsBet;
+        if (bet.pick && bet.gameId) {
+          // Create unique key combining gameId, pick, and result (w_l is same for all models)
+          const uniqueKey = `${bet.gameId}:${bet.pick}:${bet.wl || 'pending'}`;
+          
+          // Format pick with team names for totals and determine price
+          let formattedPick = bet.pick;
+          let price = 0;
+          
+          if (bet.pick.includes('Over') || bet.pick.includes('Under')) {
+            formattedPick = `${bet.homeTeam} vs ${bet.awayTeam} ${bet.pick}`;
+            price = bet.pick.includes('Over') ? bet.prices.over : bet.prices.under;
           } else {
-            // Format pick with team names for totals and determine price
-            let formattedPick = bet.pick;
-            let price = 0;
-            
-            if (bet.pick.includes('Over') || bet.pick.includes('Under')) {
-              formattedPick = `${bet.homeTeam} vs ${bet.awayTeam} ${bet.pick}`;
-              price = bet.pick.includes('Over') ? bet.prices.over : bet.prices.under;
+            // Spread bet - determine price based on which team is picked
+            if (bet.pick.includes(bet.homeTeam)) {
+              price = bet.prices.homeSpread;
             } else {
-              // Spread bet
-              price = bet.prices.homeSpread || bet.prices.awaySpread;
+              price = bet.prices.awaySpread;
             }
-            
-            pickMap.set(formattedPick, {
-              totalUnits: bet.unitsBet,
-              price: price
+          }
+          
+          const existing = pickMap.get(uniqueKey);
+          if (existing) {
+            // Same pick from multiple models - add edge and increment count
+            existing.totalEdge += bet.edge;
+            existing.modelCount += 1;
+          } else {
+            // New unique pick
+            pickMap.set(uniqueKey, {
+              totalEdge: bet.edge,
+              modelCount: 1,
+              price: price,
+              result: bet.wl
             });
           }
         }
       });
       
-      // Convert to array and sort by total units
+      // Convert to array and sort by total edge
       const aggregatedPicks = Array.from(pickMap.entries())
-        .map(([pick, data]) => ({
-          pick,
-          totalUnits: data.totalUnits,
-          price: data.price
-        }))
-        .sort((a, b) => b.totalUnits - a.totalUnits)
+        .map(([key, data]) => {
+          const [gameId, pick] = key.split(':');
+          
+          // Format pick with team names for totals
+          const bet = bets.find(b => b.gameId === gameId && b.pick === pick);
+          const formattedPick = bet && (pick.includes('Over') || pick.includes('Under')) 
+            ? `${bet.homeTeam} vs ${bet.awayTeam} ${pick}`
+            : pick;
+          
+          return {
+            pick: formattedPick,
+            totalEdge: data.totalEdge,
+            modelCount: data.modelCount,
+            price: data.price,
+            result: data.result
+          };
+        })
+        .sort((a, b) => b.totalEdge - a.totalEdge)
         .slice(0, 5);
       
       setTopPicks(aggregatedPicks);
@@ -142,33 +175,71 @@ const CommunityPage = () => {
       console.error('Error fetching top picks:', error);
     }
   };
+  
+  const changeDate = (days: number) => {
+    const newDate = new Date(selectedDate + 'T00:00:00');
+    newDate.setDate(newDate.getDate() + days);
+    const dateString = newDate.toISOString().split('T')[0];
+    setSelectedDate(dateString);
+  };
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+  
+  const getPickStyle = (result: string | null) => {
+    if (result === 'w') {
+      return {
+        backgroundColor: '#d4edda',
+        border: '2px solid #28a745'
+      };
+    } else if (result === 'l') {
+      return {
+        backgroundColor: '#f8d7da',
+        border: '2px solid #dc3545'
+      };
+    }
+    return {};
+  };
 
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchCommunityModels(), fetchTopPicks()]);
+      await Promise.all([fetchCommunityModels(), fetchTopPicks(selectedDate)]);
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [selectedDate]);
 
   return (
     <div className="page">
+      <div className="page-header">
+        <h2>Top Picks</h2>
+        <div className="date-nav">
+          <button onClick={() => changeDate(-1)} className="btn btn-outline">←</button>
+          <span className="selected-date">{formatDate(selectedDate)}</span>
+          <button onClick={() => changeDate(1)} className="btn btn-outline">→</button>
+        </div>
+      </div>
+      
       <div className="page-content">
         <div className="top-picks-section">
-          <h2>Today's Top Picks</h2>
           {loading ? (
             <div className="loading">Loading picks...</div>
           ) : topPicks.length === 0 ? (
-            <div className="empty-state">No picks available for today</div>
+            <div className="empty-state">No picks available for {formatDate(selectedDate)}</div>
           ) : (
             <div className="picks-list">
               {topPicks.map((pick, index) => (
-                <div key={index} className="pick-row">
+                <div key={index} className="pick-row" style={getPickStyle(pick.result)}>
                   <div className="pick-info">
-                    <span className="pick-name">{pick.pick}</span>
-                    <span className="pick-price">({pick.price > 0 ? '+' : ''}{pick.price})</span>
+                    <span className="pick-name">{pick.pick} ({pick.price > 0 ? '+' : ''}{pick.price})</span>
                   </div>
-                  <div className="pick-units">{pick.totalUnits} units</div>
+                  <div className="pick-edge">{pick.totalEdge.toFixed(1)} wrq</div>
                 </div>
               ))}
             </div>

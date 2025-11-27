@@ -88,8 +88,8 @@ async def community_models():
     return await get_community_models()
 
 @app.get("/todays-top-picks")
-async def todays_top_picks():
-    return await get_todays_top_picks()
+async def todays_top_picks(date: str):
+    return await get_todays_top_picks(date)
 
 @app.get("/model-history/{model_id}")
 async def model_history(model_id: int, request: Request):

@@ -189,6 +189,12 @@ body::before {
   margin-top: 130px;
 }
 
+@media (max-width: 768px) {
+  .main {
+    margin-top: 85px;
+  }
+}
+
 .page {
   padding: 1rem 0;
 }
@@ -348,6 +354,23 @@ body::before {
 @media (max-width: 1024px) {
   .create-model-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.sliders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .sliders-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .slider-column {
+    display: contents !important;
   }
 }
 
@@ -530,6 +553,26 @@ body::before {
   width: 100%;
   box-sizing: border-box;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .game-odds {
+    grid-template-columns: 2fr 1fr 1fr 1fr !important;
+    gap: 0.25rem !important;
+    font-size: 0.7rem !important;
+  }
+  
+  .odds-team-label {
+    font-size: 0.8rem !important;
+    padding: 0.25rem !important;
+    min-width: 50px !important;
+  }
+  
+  .odds-cell {
+    padding: 0.25rem !important;
+    font-size: 0.65rem !important;
+    min-height: 2rem !important;
+  }
 }
 
 .odds-row {
