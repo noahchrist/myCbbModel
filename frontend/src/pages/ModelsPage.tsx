@@ -30,34 +30,14 @@ interface UserModel {
   };
 }
 
-interface Slider {
-  id: number;
-  category: string;
-  value: number;
-}
-
 interface ModelsPageProps {
   user: User | null;
 }
 
 const ModelsPage = ({ user }: ModelsPageProps) => {
   const [userModels, setUserModels] = useState<UserModel[]>([]);
-  const [sliders, setSliders] = useState<Slider[]>([
-    { id: 1, category: 'General Offense', value: 5 },
-    { id: 2, category: 'General Defense', value: 5 },
-    { id: 3, category: 'Pace', value: 5 },
-    { id: 4, category: 'Three Point Shooting', value: 5 },
-    { id: 5, category: 'Free Throw Shooting', value: 5 },
-    { id: 6, category: 'Perimeter Defense', value: 5 },
-    { id: 7, category: 'Interior Defense', value: 5 },
-    { id: 8, category: 'Rebounding', value: 5 },
-    { id: 9, category: 'Playmaking', value: 5 },
-    { id: 10, category: 'Intangibles', value: 5 }
-  ]);
   const [showCreatePage, setShowCreatePage] = useState(false);
-
   const [selectedModel, setSelectedModel] = useState<UserModel | null>(null);
-  const [selectedModelForSliders, setSelectedModelForSliders] = useState<UserModel | null>(null);
 
   const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
@@ -115,11 +95,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
     };
   };
 
-  const handleSliderChange = (id: number, newValue: number) => {
-    setSliders(prev => prev.map(slider => 
-      slider.id === id ? { ...slider, value: newValue } : slider
-    ));
-  };
+
 
   const fetchUserModels = async () => {
     if (!user) return;
@@ -161,8 +137,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
     return (
       <ModelHistoryPage 
         user={user} 
-        modelId={selectedModel.id} 
-        modelName={selectedModel.modelName}
+        model={selectedModel}
         onBack={() => setSelectedModel(null)}
         onDelete={() => {
           showToast('Model deleted successfully!', 'success');
@@ -200,29 +175,8 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
           <div className="models-grid">
             {userModels.map(model => {
               const modelStyle = getModelStyle(model.tenDigit);
-              const isSelected = selectedModelForSliders?.id === model.id;
               return (
-                <div key={model.id} className={`model-card ${isSelected ? 'selected' : ''}`} style={modelStyle} onClick={() => {
-                  if (isSelected) {
-                    setSelectedModelForSliders(null);
-                  } else {
-                    setSelectedModelForSliders(model);
-                    if (model.weights) {
-                      setSliders([
-                        { id: 1, category: 'General Offense', value: model.weights.weightGenOff + 1 },
-                        { id: 2, category: 'General Defense', value: model.weights.weightGenDef + 1 },
-                        { id: 3, category: 'Pace', value: model.weights.weightPace + 1 },
-                        { id: 4, category: 'Three Point Shooting', value: model.weights.weightThrees + 1 },
-                        { id: 5, category: 'Free Throw Shooting', value: model.weights.weightFts + 1 },
-                        { id: 6, category: 'Perimeter Defense', value: model.weights.weightPerDef + 1 },
-                        { id: 7, category: 'Interior Defense', value: model.weights.weightIntDef + 1 },
-                        { id: 8, category: 'Rebounding', value: model.weights.weightBoards + 1 },
-                        { id: 9, category: 'Playmaking', value: model.weights.weightPlaymaking + 1 },
-                        { id: 10, category: 'Intangibles', value: model.weights.weightIntangibles + 1 }
-                      ]);
-                    }
-                  }
-                }}>
+                <div key={model.id} className="model-card" style={modelStyle} onClick={() => setSelectedModel(model)}>
 
                   <h3 className="model-name" style={{ color: modelStyle.colors.primary }}>{model.modelName}</h3>
                   <div className="model-stats">
@@ -239,70 +193,13 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
                       <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.roi}%</span>
                     </div>
                   </div>
-                  <button 
-                    className="btn btn-outline"
-                    style={{ marginTop: '0.5rem', fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedModel(model);
-                    }}
-                  >
-                    View History
-                  </button>
                 </div>
               );
             })}
           </div>
         )}
 
-        {selectedModelForSliders && (
-          <div className="sliders-section">
-            <h2>{selectedModelForSliders.modelName} Configuration</h2>
-            <div className="sliders-grid">
-              <div className="slider-column">
-                <h3>Offensive</h3>
-                {sliders.filter(s => [1, 3, 4, 5, 9].includes(s.id)).map(slider => (
-                  <div key={slider.id} className="slider-item">
-                    <div className="slider-header">
-                      <span className="slider-label">{slider.category}</span>
-                      <span className="slider-value">{slider.value}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value={slider.value}
-                      className="slider"
-                      disabled
-                    />
-                  </div>
-                ))}
-              </div>
-              
-              <div className="slider-column">
-                <h3>Defensive</h3>
-                {sliders.filter(s => [2, 6, 7, 8, 10].includes(s.id)).map(slider => (
-                  <div key={slider.id} className="slider-item">
-                    <div className="slider-header">
-                      <span className="slider-label">{slider.category}</span>
-                      <span className="slider-value">{slider.value}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      step="1"
-                      value={slider.value}
-                      className="slider"
-                      disabled
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
 
 
