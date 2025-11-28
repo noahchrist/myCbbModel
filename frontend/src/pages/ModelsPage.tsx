@@ -160,7 +160,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>My Models</h1>
+        <h2>My Models</h2>
         <button onClick={() => setShowCreatePage(true)} className="btn btn-primary">
           Create Model
         </button>

@@ -185,9 +185,9 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
 
   return (
     <div className="page">
-      <div className="page-header" style={{ position: 'relative', flexDirection: 'column', alignItems: 'flex-start' }}>
-        <button onClick={onBack} className="btn btn-outline" style={{ alignSelf: 'flex-start' }}>← My Models</button>
-        <h1 style={{ alignSelf: 'center', margin: '0.5rem 0 0 0' }}>{model.modelName}</h1>
+      <div className="page-header" style={{ justifyContent: 'flex-start' }}>
+        <button onClick={onBack} className="btn btn-outline">←</button>
+        <h2>{model.modelName}</h2>
       </div>
 
       <div className="page-content">

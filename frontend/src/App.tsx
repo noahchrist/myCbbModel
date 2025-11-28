@@ -15,6 +15,7 @@ type TabType = 'home' | 'models' | 'community' | 'account';
 const App = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [user, setUser] = useState<User | null>(null);
+  const [modelsResetKey, setModelsResetKey] = useState(0);
 
   // Check if we're on the verification page
   const isVerificationPage = window.location.pathname === '/auth/verified';
@@ -38,7 +39,7 @@ const App = () => {
       case 'home':
         return <GamesPage />;
       case 'models':
-        return <ModelsPage user={user} />;
+        return <ModelsPage key={modelsResetKey} user={user} />;
       case 'community':
         return <CommunityPage />;
       case 'account':
@@ -53,10 +54,17 @@ const App = () => {
     return <VerifiedPage />;
   }
 
+  const handleSetActiveTab = (tab: TabType) => {
+    if (tab === 'models') {
+      setModelsResetKey(prev => prev + 1);
+    }
+    setActiveTab(tab);
+  };
+
   return (
     <Layout 
       activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
+      setActiveTab={handleSetActiveTab} 
       user={user} 
       setUser={setUser}
     >

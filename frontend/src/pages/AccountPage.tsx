@@ -15,7 +15,7 @@ const AccountPage = ({ user, onLogout }: AccountPageProps) => {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>Account</h1>
+        <h2>Account</h2>
       </div>
 
       <div className="page-content">

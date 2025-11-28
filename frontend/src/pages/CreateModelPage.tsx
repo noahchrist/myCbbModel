@@ -135,10 +135,9 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
 
   return (
     <div className="page">
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="page-header" style={{ justifyContent: 'flex-start' }}>
         <button onClick={onBack} className="btn btn-outline">←</button>
-        <h1 style={{ fontSize: '2rem', margin: 0 }}>Create New Model</h1>
-        <div style={{ width: '40px' }}></div>
+        <h2>Create New Model</h2>
       </div>
 
       <div className="page-content">
