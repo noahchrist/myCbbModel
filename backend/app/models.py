@@ -185,6 +185,10 @@ async def create_model(request: ModelCreate, user_id: str):
         
         return {"message": "Model created successfully", "modelSeed": model_seed}
         
+    except HTTPException:
+        if 'conn' in locals():
+            conn.close()
+        raise
     except Exception as e:
         print(f"Error creating model: {str(e)}")
         print(f"Error type: {type(e)}")

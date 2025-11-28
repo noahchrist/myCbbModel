@@ -35,6 +35,7 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
   const [selectedModelName, setSelectedModelName] = useState('');
   const [selectedBettingStyle, setSelectedBettingStyle] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
@@ -134,15 +135,57 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
 
   return (
     <div className="page">
-      <div className="page-header">
-        <button onClick={onBack} className="btn btn-outline">← Back to Models</button>
-        <h1>Create New Model</h1>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onBack} className="btn btn-outline">←</button>
+        <h1 style={{ fontSize: '2rem', margin: 0 }}>Create New Model</h1>
+        <div style={{ width: '40px' }}></div>
       </div>
 
       <div className="page-content">
         <div className="create-model-grid">
           <div className="sliders-card">
-            <h2 style={{ borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Feature Configuration</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem', marginBottom: '1rem', position: 'relative' }}>
+              <h2 style={{ margin: 0 }}>Feature Configuration</h2>
+              <span 
+                style={{ 
+                  cursor: 'pointer', 
+                  fontSize: '0.875rem', 
+                  color: '#4a7c59', 
+                  fontWeight: 'bold',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  border: '1px solid #4a7c59',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+                onClick={() => setShowTooltip(!showTooltip)}
+              >
+                ?
+              </span>
+              {showTooltip && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: '0',
+                  backgroundColor: 'white',
+                  border: '1px solid #4a7c59',
+                  borderRadius: '8px',
+                  padding: '1rem',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 1000,
+                  width: '300px',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.4',
+                  textAlign: 'center'
+                }}>
+                  Control how much weight your model gives to different statistics when making predictions. Adjust based on what you think matters most for winning games.
+                </div>
+              )}
+            </div>
             <div className="sliders-grid">
               <div className="slider-column">
                 {sliders.filter(s => [1, 3, 4, 5, 9].includes(s.id)).map(slider => (
