@@ -15,14 +15,11 @@ interface ModelHistoryProps {
 }
 
 interface HistoryEntry {
-  id: number;
   date: string;
-  game: string;
-  bet_type: string;
-  pick: string;
-  odds: number;
-  result: 'win' | 'loss' | 'pending';
-  units: number;
+  teamPick: string;
+  price: number;
+  unitsWon: number;
+  result: string;
 }
 
 const ModelHistoryPage = ({ user, modelId, modelName, onBack, onDelete }: ModelHistoryProps) => {
@@ -81,7 +78,7 @@ const ModelHistoryPage = ({ user, modelId, modelName, onBack, onDelete }: ModelH
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
       const data = await response.json();
-      setHistory(data.history || []);
+      setHistory(data.predictions || []);
     } catch (error) {
       console.error('Error fetching model history:', error);
     } finally {
@@ -130,27 +127,17 @@ const ModelHistoryPage = ({ user, modelId, modelName, onBack, onDelete }: ModelH
           </div>
         ) : (
           <div className="history-table">
-            <div className="table-header">
+            <div className="table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem' }}>
               <div>Date</div>
-              <div>Game</div>
-              <div>Bet Type</div>
               <div>Pick</div>
-              <div>Odds</div>
-              <div>Result</div>
               <div>Units</div>
             </div>
-            {history.map(entry => (
-              <div key={entry.id} className={`table-row ${entry.result}`}>
+            {history.map((entry, index) => (
+              <div key={index} className="table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem', padding: '0.75rem', marginBottom: '0.5rem', borderRadius: '4px' }}>
                 <div>{new Date(entry.date).toLocaleDateString()}</div>
-                <div>{entry.game}</div>
-                <div>{entry.bet_type}</div>
-                <div>{entry.pick}</div>
-                <div>{entry.odds > 0 ? `+${entry.odds}` : entry.odds}</div>
-                <div className={`result-badge ${entry.result}`}>
-                  {entry.result.toUpperCase()}
-                </div>
-                <div className={entry.result === 'win' ? 'positive' : entry.result === 'loss' ? 'negative' : ''}>
-                  {entry.result === 'win' ? '+' : entry.result === 'loss' ? '-' : ''}{Math.abs(entry.units)}
+                <div>{entry.teamPick} ({entry.price > 0 ? `+${entry.price}` : entry.price})</div>
+                <div className={entry.result === 'w' ? 'positive' : entry.result === 'l' ? 'negative' : ''}>
+                  {entry.result === 'w' ? '+' : entry.result === 'l' ? '-' : ''}{Math.abs(entry.unitsWon || 0).toFixed(2)}
                 </div>
               </div>
             ))}

@@ -49,8 +49,12 @@ const CommunityPage = () => {
   const [topPicks, setTopPicks] = useState<TopPick[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    const now = new Date();
+    const estDate = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const year = estDate.getFullYear();
+    const month = String(estDate.getMonth() + 1).padStart(2, '0');
+    const day = String(estDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
 
   const getModelColors = (tenDigit: number) => {
@@ -195,13 +199,11 @@ const CommunityPage = () => {
   const getPickStyle = (result: string | null) => {
     if (result === 'w') {
       return {
-        backgroundColor: '#d4edda',
-        border: '2px solid #28a745'
+        border: '2px solid #c8e6c9'
       };
     } else if (result === 'l') {
       return {
-        backgroundColor: '#f8d7da',
-        border: '2px solid #dc3545'
+        border: '2px solid #e8b4b4'
       };
     }
     return {};

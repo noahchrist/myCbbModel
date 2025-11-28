@@ -151,7 +151,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
     return (
       <div className="page">
         <div className="empty-state">
-          <h2>Please log in to view your models</h2>
+          <h2>Log in to create and view models</h2>
         </div>
       </div>
     );

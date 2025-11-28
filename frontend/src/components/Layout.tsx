@@ -119,6 +119,23 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
     setMobileMenuOpen(false);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (mobileMenuOpen && !target.closest('.nav-mobile') && !target.closest('.mobile-menu-btn')) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (mobileMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [mobileMenuOpen]);
+
   return (
     <div className="app">
       <header className="header">

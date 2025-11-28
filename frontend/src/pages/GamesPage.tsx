@@ -22,8 +22,12 @@ interface Game {
 
 const GamesPage = () => {
   const [currentDate, setCurrentDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    const now = new Date();
+    const estDate = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const year = estDate.getFullYear();
+    const month = String(estDate.getMonth() + 1).padStart(2, '0');
+    const day = String(estDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);

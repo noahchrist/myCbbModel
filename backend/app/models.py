@@ -317,12 +317,12 @@ async def get_model_history(model_id: int, user_id: str = None):
                 team_pick = f"{away_team} {away_spread:+.1f}"
                 price = away_price
         else:  # bet_type == 'total'
-            # Determine over/under pick
+            # Determine over/under pick with team names
             if pred_total > over_line:
-                team_pick = f"Over {over_line}"
+                team_pick = f"{away_team} vs {home_team} Over {over_line}"
                 price = over_price
             else:
-                team_pick = f"Under {under_line}"
+                team_pick = f"{away_team} vs {home_team} Under {under_line}"
                 price = under_price
         
         predictions.append({
