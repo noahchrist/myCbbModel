@@ -30,6 +30,14 @@ interface UserModel {
   };
 }
 
+interface DailyPick {
+  summary: string;
+  unitsBet: number;
+  edge: number;
+  homeTeam: string;
+  awayTeam: string;
+}
+
 interface ModelsPageProps {
   user: User | null;
 }
@@ -38,6 +46,15 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [showCreatePage, setShowCreatePage] = useState(false);
   const [selectedModel, setSelectedModel] = useState<UserModel | null>(null);
+  const [modelPicks, setModelPicks] = useState<{[key: number]: DailyPick[]}>({});
+  const [selectedDate] = useState(() => {
+    const now = new Date();
+    const estDate = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+    const year = estDate.getFullYear();
+    const month = String(estDate.getMonth() + 1).padStart(2, '0');
+    const day = String(estDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
   const showToast = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     toast[type](message, {
@@ -108,6 +125,28 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
       });
       const data = await response.json();
       setUserModels(data.models || []);
+      
+      // Fetch daily picks for each model
+      const picksPromises = (data.models || []).map(async (model: UserModel) => {
+        try {
+          const picksResponse = await fetch(`${API_URL}/model-daily-picks/${model.id}?date=${selectedDate}`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          const picksData = await picksResponse.json();
+          return { modelId: model.id, picks: picksData.picks || [] };
+        } catch (error) {
+          console.error(`Error fetching picks for model ${model.id}:`, error);
+          return { modelId: model.id, picks: [] };
+        }
+      });
+      
+      const allPicks = await Promise.all(picksPromises);
+      const picksMap = allPicks.reduce((acc, { modelId, picks }) => {
+        acc[modelId] = picks;
+        return acc;
+      }, {} as {[key: number]: DailyPick[]});
+      
+      setModelPicks(picksMap);
     } catch (error) {
       console.error('Error fetching user models:', error);
     }
@@ -152,7 +191,10 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
       <CreateModelPage 
         user={user}
         onBack={() => setShowCreatePage(false)}
-        onModelCreated={() => fetchUserModels()}
+        onModelCreated={() => {
+          showToast('Model created successfully!', 'success');
+          fetchUserModels();
+        }}
       />
     );
   }
@@ -177,21 +219,21 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
               const modelStyle = getModelStyle(model.tenDigit);
               return (
                 <div key={model.id} className="model-card" style={modelStyle} onClick={() => setSelectedModel(model)}>
-
-                  <h3 className="model-name" style={{ color: modelStyle.colors.primary }}>{model.modelName}</h3>
-                  <div className="model-stats">
-                    <div className="stat">
-                      <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Record</span>
-                      <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.wins}-{model.losses}</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Units</span>
-                      <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.unitsWon}</span>
-                    </div>
-                    <div className="stat">
-                      <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>ROI</span>
-                      <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.roi}%</span>
-                    </div>
+                  <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '2rem' }}>{model.modelName}</h3>
+                  <div className="model-stats-horizontal" style={{ color: modelStyle.colors.primary, marginBottom: '1rem', textAlign: 'center' }}>
+                    Record: <span style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span> | 
+                    Units: <span style={{ color: modelStyle.colors.secondary }}>{model.unitsWon}</span> | 
+                    ROI: <span style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
+                  </div>
+                  <div className="model-picks" style={{ fontSize: '0.9rem', color: modelStyle.colors.secondary }}>
+                    {modelPicks[model.id]?.slice(0, 5).map((pick, index) => (
+                      <div key={index} style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontWeight: 'bold', color: modelStyle.colors.primary, marginBottom: '0.25rem' }}>
+                          {index + 1}. {pick.homeTeam} vs {pick.awayTeam}
+                        </div>
+                        <div>{pick.summary}</div>
+                      </div>
+                    )) || <div>No picks for today</div>}
                   </div>
                 </div>
               );

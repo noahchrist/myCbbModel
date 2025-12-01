@@ -122,7 +122,6 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
       });
 
       if (response.ok) {
-        showToast('Model deleted successfully!', 'success');
         onDelete();
         onBack();
       } else {

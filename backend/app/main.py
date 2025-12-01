@@ -12,7 +12,7 @@ from .auth import get_current_user, sync_user_in_local_db, UserCreate
 from .games import get_games_by_date
 from .models import (
     get_model_names, get_user_models, create_model, 
-    get_community_models, delete_model, get_model_history, get_todays_top_picks, ModelCreate
+    get_community_models, delete_model, get_model_history, get_todays_top_picks, get_model_daily_picks, ModelCreate
 )
 
 load_dotenv()
@@ -103,3 +103,7 @@ async def model_history(model_id: int, request: Request):
 @app.delete("/delete-model/{model_id}")
 async def delete_user_model(model_id: int, user_id: str = Depends(get_user_dependency())):
     return await delete_model(model_id, user_id)
+
+@app.get("/model-daily-picks/{model_id}")
+async def model_daily_picks(model_id: int, date: str, user_id: str = Depends(get_user_dependency())):
+    return await get_model_daily_picks(date, model_id, user_id)

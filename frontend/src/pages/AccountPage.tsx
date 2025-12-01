@@ -24,7 +24,7 @@ const AccountPage = ({ user, onLogout }: AccountPageProps) => {
           <p>Profile settings and preferences coming soon...</p>
         </div>
         
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #333' }}>
+        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #333', textAlign: 'center' }}>
           <button 
             onClick={handleLogout}
             className="btn btn-outline"

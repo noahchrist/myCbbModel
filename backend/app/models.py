@@ -121,7 +121,7 @@ async def create_model(request: ModelCreate, user_id: str):
         df_train = pd.read_sql("SELECT * FROM setAlpha", conn)
         print(f"Training data shape: {df_train.shape}")
         
-        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season"]
+        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "home_kpid", "away_kpid"]
         feature_cols = [c for c in df_train.columns if c not in drop_cols]
         print(f"Feature columns: {len(feature_cols)}")
         
@@ -381,3 +381,37 @@ async def get_todays_top_picks(date: str):
     conn.close()
     return {"bets": bets}
 
+
+async def get_model_daily_picks(date: str, model_id: int, user_id: str):
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Verify model ownership
+    cursor.execute("SELECT id FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    # Get picks for the specified date
+    cursor.execute("""
+        SELECT summary, unitsBet, edge, home_team, away_team
+        FROM modelPredictions 
+        WHERE modelId = ? AND datePredicted = ?
+        ORDER BY edge DESC
+        LIMIT 5
+    """, (model_id, date))
+    
+    picks = []
+    for row in cursor.fetchall():
+        summary, units_bet, edge, home_team, away_team = row
+        picks.append({
+            "summary": summary,
+            "unitsBet": units_bet,
+            "edge": edge,
+            "homeTeam": home_team,
+            "awayTeam": away_team
+        })
+    
+    conn.close()
+    return {"picks": picks}

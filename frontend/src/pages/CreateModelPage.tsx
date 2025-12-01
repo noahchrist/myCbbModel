@@ -115,7 +115,6 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
       });
 
       if (response.ok) {
-        showToast('Model created successfully!', 'success');
         onModelCreated();
         onBack();
       } else {

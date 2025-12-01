@@ -250,7 +250,7 @@ const CommunityPage = () => {
                   <div className="pick-info">
                     <span className="pick-name">{pick.pick} ({pick.price > 0 ? '+' : ''}{pick.price})</span>
                   </div>
-                  <div className="pick-edge" style={{ marginLeft: '1rem' }}>{pick.totalEdge.toFixed(1)} wrq</div>
+                  <div className="pick-edge">{pick.totalEdge.toFixed(1)} wrq</div>
                 </div>
               ))}
             </div>
