@@ -345,9 +345,9 @@ async def get_todays_top_picks(date: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Get all predictions for the specified date with game_id, summary, teams, edge, w_l, and all prices
+    # Get all predictions for the specified date with game_id, summary, teams, edge, w_l, modelId, and all prices
     cursor.execute("""
-        SELECT game_id, summary, edge, home_team, away_team, w_l,
+        SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
                fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
         FROM modelPredictions 
         WHERE datePredicted = ?
@@ -355,7 +355,7 @@ async def get_todays_top_picks(date: str):
     
     bets = []
     for row in cursor.fetchall():
-        game_id, summary, edge, home_team, away_team, w_l, home_spread_price, away_spread_price, over_price, under_price = row
+        game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
         
         # Extract pick from summary (text after 'Pick:')
         pick = ""
@@ -369,6 +369,7 @@ async def get_todays_top_picks(date: str):
             "homeTeam": home_team,
             "awayTeam": away_team,
             "wl": w_l,
+            "modelId": model_id,
             "prices": {
                 "homeSpread": home_spread_price,
                 "awaySpread": away_spread_price,

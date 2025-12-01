@@ -21,6 +21,7 @@ interface Bet {
   homeTeam: string;
   awayTeam: string;
   wl: string | null;
+  modelId: number;
   prices: {
     homeSpread: number;
     awaySpread: number;
@@ -111,6 +112,10 @@ const CommunityPage = () => {
       const data = await response.json();
       const bets: Bet[] = data.bets || [];
       
+      // Get unique model count
+      const uniqueModelIds = new Set(bets.map(bet => bet.modelId));
+      const totalModelCount = uniqueModelIds.size;
+      
       // Aggregate bets by unique pick (gameId + pick combination)
       const pickMap = new Map<string, PickData>();
       
@@ -172,7 +177,11 @@ const CommunityPage = () => {
           };
         })
         .sort((a, b) => b.totalEdge - a.totalEdge)
-        .slice(0, 5);
+        .slice(0, 5)
+        .map(pick => ({
+          ...pick,
+          totalEdge: pick.totalEdge / totalModelCount
+        }));
       
       setTopPicks(aggregatedPicks);
     } catch (error) {
@@ -260,24 +269,24 @@ const CommunityPage = () => {
                 const modelStyle = getModelStyle(model.tenDigit);
                 return (
                   <div key={index} className="model-card community" style={modelStyle}>
-                    <h3 className="model-name" style={{ color: modelStyle.colors.primary }}>{model.modelName}</h3>
-                    <div className="model-creator" style={{ color: modelStyle.colors.secondary }}>by {model.userName}</div>
+                    <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', marginBottom: '0.1rem' }}>{model.modelName}</h3>
+                    <div className="model-creator" style={{ color: modelStyle.colors.secondary, textAlign: 'center' }}>{model.userName}</div>
                     <div className="model-stats">
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Style</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.bettingStyle}</span>
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Style</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.bettingStyle}</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Record</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.wins}-{model.losses}</span>
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Record</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>Units</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.unitsWon}</span>
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon}</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.secondary }}>ROI</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.primary }}>{model.roi}%</span>
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>ROI</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
                       </div>
                     </div>
                   </div>
