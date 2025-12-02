@@ -254,9 +254,9 @@ try:
         current_avg_result = cursor.fetchone()
         current_avg = current_avg_result[0] if current_avg_result and current_avg_result[0] else 139.52
         historical_avg = 139.52
-        total_bias = current_avg - historical_avg
+        total_bias = (current_avg - historical_avg) * 0.8
         
-        logger.info(f"Total bias calculation: Current avg {current_avg:.2f} - Historical avg {historical_avg} = {total_bias:.2f}")
+        logger.info(f"Total bias calculation: (Current avg {current_avg:.2f} - Historical avg {historical_avg}) * 0.8 = {total_bias:.2f}")
         
         # Load baseline target data from setTarget2026 for today (only upcoming games)
         logger.info(f"Loading baseline target data from setTarget2026 for {today}")
