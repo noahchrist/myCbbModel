@@ -8,6 +8,8 @@ interface Game {
   commence_time: string;
   home_score: number | null;
   away_score: number | null;
+  pt_diff: number | null;
+  pt_total: number | null;
   fd_home_hhPrice: number;
   fd_away_hhPrice: number;
   fd_home_spread: number;
@@ -65,25 +67,30 @@ const GamesPage = () => {
   };
 
   const isGameCompleted = (game: Game) => {
-    return game.home_score !== null && game.away_score !== null;
+    return game.pt_diff !== null && game.pt_total !== null;
   };
 
   const getBettingResults = (game: Game) => {
     if (!isGameCompleted(game)) return {};
     
-    const homeWon = game.home_score! > game.away_score!;
-    const pointDiff = game.home_score! - game.away_score!;
-    const totalPoints = game.home_score! + game.away_score!;
+    const homeWon = game.pt_diff! > 0;
+    const homeSpread = game.fd_home_spread || 0;
+    
+    // Spread logic: Add the spread to actual result
+    // Home favored by 7 (spread = -7), wins by 10: 10 + (-7) = +3 > 0 ✅ home covers
+    // Home favored by 7 (spread = -7), wins by 5: 5 + (-7) = -2 < 0 ❌ away covers  
+    // Home underdog by 3 (spread = +3), loses by 1: -1 + 3 = +2 > 0 ✅ home covers
+    const spreadResult = game.pt_diff! + homeSpread;
     
     return {
       moneyline: { homeWins: homeWon, awayWins: !homeWon },
       spread: {
-        homeWins: pointDiff + (game.fd_home_spread || 0) > 0,
-        awayWins: pointDiff + (game.fd_away_spread || 0) < 0
+        homeWins: spreadResult > 0,
+        awayWins: spreadResult < 0
       },
       total: {
-        overWins: totalPoints > (game.fd_over || 0),
-        underWins: totalPoints < (game.fd_under || 0)
+        overWins: game.pt_total! > (game.fd_over || 0),
+        underWins: game.pt_total! < (game.fd_under || 0)
       }
     };
   };
