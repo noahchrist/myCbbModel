@@ -5,6 +5,10 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv()
+DB_PATH = os.environ.get('DB_PATH')
+
+if not DB_PATH:
+    raise ValueError("Missing DB_PATH in environment variables or .env file")
 
 def cleanup_todays_picks():
     """Remove today's picks that don't meet betting style edge thresholds"""
@@ -13,8 +17,7 @@ def cleanup_todays_picks():
     eastern = ZoneInfo("America/New_York")
     today = datetime.now(eastern).strftime('%Y-%m-%d')
     
-    db_path = os.environ.get('DB_PATH')
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # Edge thresholds by betting style
