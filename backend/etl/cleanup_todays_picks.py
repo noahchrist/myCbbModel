@@ -18,9 +18,8 @@ logger.info("Starting cleanup of today's picks...")
 def cleanup_todays_picks():
     """Remove today's picks that don't meet betting style edge thresholds"""
     
-    # Get today's date in Eastern time
-    eastern = ZoneInfo("America/New_York")
-    today = datetime.now(eastern).strftime('%Y-%m-%d')
+    # Set specific date to clean up
+    today = '2024-12-04'
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
