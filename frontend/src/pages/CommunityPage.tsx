@@ -170,18 +170,15 @@ const CommunityPage = () => {
           
           return {
             pick: formattedPick,
-            totalEdge: data.totalEdge,
+            totalEdge: data.totalEdge / totalModelCount,
             modelCount: data.modelCount,
             price: data.price,
             result: data.result
           };
         })
+        .filter(pick => pick.totalEdge >= 3.0)
         .sort((a, b) => b.totalEdge - a.totalEdge)
-        .slice(0, 5)
-        .map(pick => ({
-          ...pick,
-          totalEdge: pick.totalEdge / totalModelCount
-        }));
+        .slice(0, 5);
       
       setTopPicks(aggregatedPicks);
     } catch (error) {

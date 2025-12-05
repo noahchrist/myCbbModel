@@ -361,15 +361,25 @@ try:
             edges = calculate_edges_and_picks(spread_df, total_df, conn)
             top_5_edges = edges[:5]
             
+            # Apply minimum edge thresholds based on betting style
+            edge_thresholds = {
+                'Aggressive': 3.0,
+                'Moderate': 4.0,
+                'Reserved': 5.0
+            }
+            min_edge = edge_thresholds.get(betting_style, 4.0)
+            qualified_edges = [e for e in top_5_edges if e['edge'] >= min_edge]
+            
             logger.info(f"Top 5 edges: {[round(e['edge'], 2) for e in top_5_edges]}")
+            logger.info(f"Qualified edges (>= {min_edge}): {[round(e['edge'], 2) for e in qualified_edges]}")
             
             # Clear existing predictions for this model today
             cursor.execute("DELETE FROM modelPredictions WHERE modelId = ? AND datePredicted = ?", 
                           (model_id, datetime.now(eastern).date().isoformat()))
             
-            # Save top 5 predictions
+            # Save qualified predictions
             logger.info("Saving predictions")
-            for i, edge_data in enumerate(top_5_edges, 1):
+            for i, edge_data in enumerate(qualified_edges, 1):
                 row_with_odds = edge_data['row_data']
                 units_bet = get_units_to_bet(betting_style, i)
                 
@@ -428,7 +438,7 @@ try:
                     summary
                 ))
             
-            logger.info(f"Saved 5 predictions for {model_name}")
+            logger.info(f"Saved {len(qualified_edges)} predictions for {model_name}")
         
         conn.commit()
         conn.close()
