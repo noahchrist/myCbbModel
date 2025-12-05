@@ -11,9 +11,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 interface UserModel {
   id: number;
   modelName: string;
+  bettingStyle: string;
   tenDigit: number;
   wins: number;
   losses: number;
+  unitsBet: number;
   unitsWon: number;
   roi: number;
   weights?: {
@@ -220,9 +222,11 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
               return (
                 <div key={model.id} className="model-card" style={modelStyle} onClick={() => setSelectedModel(model)}>
                   <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '2rem' }}>{model.modelName}</h3>
+                  <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}><span style={{ color: modelStyle.colors.primary }}>Betting Style:</span> <span style={{ color: modelStyle.colors.secondary }}>{model.bettingStyle}</span></div>
                   <div className="model-stats-horizontal" style={{ color: modelStyle.colors.primary, marginBottom: '1rem', textAlign: 'center' }}>
                     Record: <span style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span> | 
-                    Units: <span style={{ color: modelStyle.colors.secondary }}>{model.unitsWon}</span> | 
+                    Units Bet: <span style={{ color: modelStyle.colors.secondary }}>{model.unitsBet}</span> | 
+                    Units Won: <span style={{ color: modelStyle.colors.secondary }}>{model.unitsWon > 0 ? '+' : ''}{model.unitsWon}</span> | 
                     ROI: <span style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
                   </div>
                   <div className="model-picks" style={{ fontSize: '0.9rem', color: modelStyle.colors.secondary }}>

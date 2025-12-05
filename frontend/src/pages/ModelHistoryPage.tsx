@@ -243,22 +243,38 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
             <p>No betting history available for this model yet.</p>
           </div>
         ) : (
-          <div className="history-table">
+          <>
+            <h2 className="page-header">Betting History</h2>
+            <div className="history-table">
             <div className="table-header" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem' }}>
               <div>Date</div>
               <div>Pick</div>
               <div>Units</div>
             </div>
-            {history.map((entry, index) => (
-              <div key={index} className="table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem', padding: '0.75rem', marginBottom: '0.5rem', borderRadius: '4px' }}>
-                <div>{new Date(entry.date).toLocaleDateString()}</div>
-                <div>{entry.teamPick} ({entry.price > 0 ? `+${entry.price}` : entry.price})</div>
-                <div className={entry.result === 'w' ? 'positive' : entry.result === 'l' ? 'negative' : ''}>
-                  {entry.result === 'w' ? '+' : entry.result === 'l' ? '-' : ''}{Math.abs(entry.unitsWon || 0).toFixed(2)}
+            {(() => {
+              const groupedByDate = history.reduce((groups, entry) => {
+                const date = entry.date;
+                if (!groups[date]) groups[date] = [];
+                groups[date].push(entry);
+                return groups;
+              }, {} as Record<string, typeof history>);
+              
+              return Object.entries(groupedByDate).map(([date, entries]) => (
+                <div key={date} style={{ border: `1px solid ${getModelColors(model.tenDigit).primary}`, borderRadius: '4px', marginBottom: '1rem', padding: '0.5rem' }}>
+                  {entries.map((entry, index) => (
+                    <div key={index} className="table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem', padding: '0.75rem', marginBottom: index < entries.length - 1 ? '0.5rem' : '0', borderRadius: '4px' }}>
+                      <div>{new Date(entry.date).toLocaleDateString()}</div>
+                      <div>{entry.teamPick} ({entry.price > 0 ? `+${entry.price}` : entry.price})</div>
+                      <div className={entry.result === 'w' ? 'positive' : entry.result === 'l' ? 'negative' : ''}>
+                        {entry.result === 'w' ? '+' : entry.result === 'l' ? '-' : ''}{Math.abs(entry.unitsWon || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
+          </>
         )}
         
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem', paddingBottom: '2rem' }}>

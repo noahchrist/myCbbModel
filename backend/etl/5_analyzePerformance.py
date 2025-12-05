@@ -116,12 +116,12 @@ def analyze_completed_games():
             
             logger.info(f"Updated prediction {pred_id}: {w_l} ({units_won:+.2f} units)")
         
-        # Update model overall stats
-        cursor.execute("SELECT DISTINCT modelId FROM modelPredictions WHERE is_completed = 1")
-        model_ids = [row[0] for row in cursor.fetchall()]
+        # Recalculate ALL model stats from scratch
+        cursor.execute("SELECT id FROM modelDetails")
+        all_model_ids = [row[0] for row in cursor.fetchall()]
         
-        for model_id in model_ids:
-            # Calculate overall stats
+        for model_id in all_model_ids:
+            # Calculate overall stats from ALL completed predictions
             cursor.execute("""
                 SELECT 
                     COUNT(*) as total_games,
@@ -134,18 +134,18 @@ def analyze_completed_games():
             """, (model_id,))
             
             stats = cursor.fetchone()
-            total_games, wins, losses, total_units_bet, total_units_won = stats
+            total_games, wins, losses, total_units_bet, total_units_won = stats or (0, 0, 0, 0, 0)
             
-            w_l_overall = f"{wins}-{losses}"
+            w_l_overall = f"{wins or 0}-{losses or 0}"
             
-            # Update modelDetails
+            # Update modelDetails with fresh calculations
             cursor.execute("""
                 UPDATE modelDetails 
                 SET w_l_overall = ?, unitsBetOverall = ?, unitsWonOverall = ?
                 WHERE id = ?
-            """, (w_l_overall, total_units_bet, total_units_won, model_id))
+            """, (w_l_overall, total_units_bet or 0, total_units_won or 0, model_id))
             
-            logger.info(f"Updated model {model_id}: {w_l_overall} ({total_units_won:+.2f} units)")
+            logger.info(f"Recalculated model {model_id}: {w_l_overall} ({total_units_won or 0:+.2f} units)")
         
         conn.commit()
         logger.info("Completed game analysis finished")

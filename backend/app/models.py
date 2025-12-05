@@ -66,6 +66,7 @@ async def get_user_models(user_id: str):
             "featuredPick": "TBD",
             "wins": wins or 0,
             "losses": losses or 0,
+            "unitsBet": round(units_bet or 0, 2),
             "unitsWon": round(units_won or 0, 2),
             "roi": round(roi, 1),
             "weights": {
@@ -205,22 +206,25 @@ async def get_community_models():
     
     cursor.execute(
         """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
-           COUNT(p.predictionId) as totalPredictions,
-           SUM(CASE WHEN p.unitsWon > 0 THEN 1 ELSE 0 END) as wins,
-           SUM(CASE WHEN p.unitsWon < 0 THEN 1 ELSE 0 END) as losses,
-           SUM(p.unitsWon) as unitsWon,
-           SUM(p.unitsBet) as unitsBet
+           m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall
            FROM modelDetails m
            LEFT JOIN users u ON m.userId = u.id
-           LEFT JOIN modelPredictions p ON m.id = p.modelId
-           GROUP BY m.id
-           ORDER BY SUM(p.unitsWon) DESC"""
+           ORDER BY CASE WHEN m.unitsBetOverall > 0 THEN m.unitsWonOverall / m.unitsBetOverall ELSE 0 END DESC"""
     )
     
     models = []
     for row in cursor.fetchall():
-        model_id, name, user, created, style, ten_digit, total, wins, losses, units_won, units_bet = row
-        roi = (units_won / units_bet * 100) if units_bet and units_won and units_bet > 0 else 0
+        model_id, name, user, created, style, ten_digit, w_l_overall, units_bet, units_won = row
+        
+        # Parse wins/losses from w_l_overall (format: "1-0")
+        wins, losses = 0, 0
+        if w_l_overall:
+            try:
+                wins, losses = map(int, w_l_overall.split('-'))
+            except:
+                wins, losses = 0, 0
+        
+        roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
         
         models.append({
             "id": model_id,
@@ -229,8 +233,9 @@ async def get_community_models():
             "dateCreated": created,
             "bettingStyle": style,
             "tenDigit": ten_digit,
-            "wins": wins or 0,
-            "losses": losses or 0,
+            "wins": wins,
+            "losses": losses,
+            "unitsBet": round(units_bet or 0, 2),
             "unitsWon": round(units_won or 0, 2),
             "roi": round(roi, 1)
         })

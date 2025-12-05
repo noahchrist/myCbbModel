@@ -10,6 +10,7 @@ interface CommunityModel {
   tenDigit: number;
   wins: number;
   losses: number;
+  unitsBet: number;
   unitsWon: number;
   roi: number;
 }
@@ -278,8 +279,12 @@ const CommunityPage = () => {
                         <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span>
                       </div>
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon}</span>
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Bet</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsBet}</span>
+                      </div>
+                      <div className="stat">
+                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Won</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon > 0 ? '+' : ''}{model.unitsWon}</span>
                       </div>
                       <div className="stat">
                         <span className="stat-label" style={{ color: modelStyle.colors.primary }}>ROI</span>
