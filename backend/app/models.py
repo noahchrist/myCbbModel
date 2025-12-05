@@ -305,12 +305,12 @@ async def get_model_history(model_id: int, user_id: str = None):
     
     # Get prediction history with all needed fields
     cursor.execute("""
-        SELECT datePredicted, home_team, away_team, bet_type, predicted_pt_diff, predicted_pt_total,
+        SELECT game_date, home_team, away_team, bet_type, predicted_pt_diff, predicted_pt_total,
                fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                fd_over, fd_overPrice, fd_under, fd_underPrice, unitsBet, unitsWon, w_l
         FROM modelPredictions 
         WHERE modelId = ? AND is_completed = 1
-        ORDER BY datePredicted DESC
+        ORDER BY game_date DESC
     """, (model_id,))
     
     predictions = []

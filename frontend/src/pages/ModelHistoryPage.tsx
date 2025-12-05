@@ -263,7 +263,7 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
                 <div key={date} style={{ border: `1px solid ${getModelColors(model.tenDigit).primary}`, borderRadius: '4px', marginBottom: '1rem', padding: '0.5rem' }}>
                   {entries.map((entry, index) => (
                     <div key={index} className="table-row" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '1rem', padding: '0.75rem', marginBottom: index < entries.length - 1 ? '0.5rem' : '0', borderRadius: '4px' }}>
-                      <div>{new Date(entry.date).toLocaleDateString()}</div>
+                      <div>{entry.date}</div>
                       <div>{entry.teamPick} ({entry.price > 0 ? `+${entry.price}` : entry.price})</div>
                       <div className={entry.result === 'w' ? 'positive' : entry.result === 'l' ? 'negative' : ''}>
                         {entry.result === 'w' ? '+' : entry.result === 'l' ? '-' : ''}{Math.abs(entry.unitsWon || 0).toFixed(2)}
