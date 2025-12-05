@@ -3,12 +3,17 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+from logger import get_logger
+
+logger = get_logger("cleanup_todays_picks")
 
 load_dotenv()
 DB_PATH = os.environ.get('DB_PATH')
 
 if not DB_PATH:
     raise ValueError("Missing DB_PATH in environment variables or .env file")
+
+logger.info("Starting cleanup of today's picks...")
 
 def cleanup_todays_picks():
     """Remove today's picks that don't meet betting style edge thresholds"""
@@ -27,11 +32,13 @@ def cleanup_todays_picks():
         'Reserved': 5.0
     }
     
-    print(f"Cleaning up picks for {today}")
+    logger.info(f"Cleaning up picks for {today}")
     
     # Get all models with their betting styles
     cursor.execute("SELECT id, bettingStyle FROM modelDetails")
     models = cursor.fetchall()
+    
+    logger.info(f"Found {len(models)} models to process")
     
     total_removed = 0
     
@@ -55,25 +62,24 @@ def cleanup_todays_picks():
             
             removed_count = len(picks_to_remove)
             total_removed += removed_count
-            print(f"Model {model_id} ({betting_style}): Removed {removed_count} picks below {min_edge} edge")
+            logger.info(f"Model {model_id} ({betting_style}): Removed {removed_count} picks below {min_edge} edge")
     
     conn.commit()
     conn.close()
     
-    print(f"Total picks removed: {total_removed}")
+    logger.info(f"Total picks removed: {total_removed}")
 
 def main():
     """Main function to cleanup today's picks"""
-    print("Starting cleanup of today's picks")
+    logger.info("Starting cleanup of today's picks")
     
     try:
         cleanup_todays_picks()
-    except Exception as e:
-        print(f"Cleanup failed: {str(e)}")
+        logger.info("Cleanup completed successfully")
+    except Exception:
+        logger.error("Cleanup failed", exc_info=True)
         if 'conn' in locals():
             conn.close()
-    
-    print("Cleanup completed")
 
 if __name__ == "__main__":
     main()
