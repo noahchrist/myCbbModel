@@ -62,9 +62,18 @@ def cleanup_todays_picks():
     
     print(f"Total picks removed: {total_removed}")
 
-try:
-    cleanup_todays_picks()
-except Exception as e:
-    print(f"Cleanup failed: {str(e)}")
-    if 'conn' in locals():
-        conn.close()
+def main():
+    """Main function to cleanup today's picks"""
+    print("Starting cleanup of today's picks")
+    
+    try:
+        cleanup_todays_picks()
+    except Exception as e:
+        print(f"Cleanup failed: {str(e)}")
+        if 'conn' in locals():
+            conn.close()
+    
+    print("Cleanup completed")
+
+if __name__ == "__main__":
+    main()
