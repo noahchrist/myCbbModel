@@ -58,6 +58,14 @@ const CommunityPage = () => {
     const day = String(estDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
+  const [collapsedCards, setCollapsedCards] = useState<Set<number>>(new Set());
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [topPicksPerformance, setTopPicksPerformance] = useState({
+    record: '0-0',
+    unitsBet: '0',
+    unitsWon: '0',
+    roi: '0%'
+  });
 
   const getModelColors = (tenDigit: number) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
@@ -97,11 +105,25 @@ const CommunityPage = () => {
     };
   };
 
+  const getCardsPerRow = () => {
+    const containerWidth = window.innerWidth - 48; // Account for padding
+    const cardMinWidth = 280;
+    const gap = 24; // 1.5rem gap
+    return Math.floor((containerWidth + gap) / (cardMinWidth + gap)) || 1;
+  };
+
   const fetchCommunityModels = async () => {
     try {
       const response = await fetch(`${API_URL}/community-models`);
       const data = await response.json();
       setCommunityModels(data.models || []);
+      // Initialize collapsed state - collapse all except top row
+      const cardsPerRow = getCardsPerRow();
+      const initialCollapsed = new Set<number>();
+      data.models?.forEach((model: CommunityModel, index: number) => {
+        if (index >= cardsPerRow) initialCollapsed.add(index);
+      });
+      setCollapsedCards(initialCollapsed);
     } catch (error) {
       console.error('Error fetching community models:', error);
     }
@@ -216,13 +238,72 @@ const CommunityPage = () => {
     return {};
   };
 
+  const toggleCardCollapse = (index: number) => {
+    setCollapsedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  const showAllCards = () => {
+    setCollapsedCards(new Set());
+  };
+
+  const hideAllCards = () => {
+    const allIndices = new Set(communityModels.map((_, index) => index));
+    setCollapsedCards(allIndices);
+  };
+
+  const getAllModelsStats = () => {
+    const totalWins = communityModels.reduce((sum, model) => sum + model.wins, 0);
+    const totalLosses = communityModels.reduce((sum, model) => sum + model.losses, 0);
+    const totalUnitsBet = communityModels.reduce((sum, model) => sum + model.unitsBet, 0);
+    const totalUnitsWon = communityModels.reduce((sum, model) => sum + model.unitsWon, 0);
+    const roi = totalUnitsBet > 0 ? (totalUnitsWon / totalUnitsBet * 100) : 0;
+    
+    return {
+      record: `${totalWins}-${totalLosses}`,
+      unitsBet: totalUnitsBet.toFixed(2),
+      unitsWon: totalUnitsWon > 0 ? `+${totalUnitsWon.toFixed(2)}` : totalUnitsWon.toFixed(2),
+      roi: `${roi.toFixed(1)}%`
+    };
+  };
+
+  const fetchTopPicksPerformance = async () => {
+    try {
+      const response = await fetch(`${API_URL}/top-picks-performance`);
+      const data = await response.json();
+      setTopPicksPerformance({
+        record: data.record || '0-0',
+        unitsBet: (data.unitsBet || 0).toString(),
+        unitsWon: data.unitsWon > 0 ? `+${data.unitsWon || 0}` : (data.unitsWon || 0).toString(),
+        roi: `${data.roi || 0}%`
+      });
+    } catch (error) {
+      console.error('Error fetching top picks performance:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchCommunityModels(), fetchTopPicks(selectedDate)]);
+      await Promise.all([fetchCommunityModels(), fetchTopPicks(selectedDate), fetchTopPicksPerformance()]);
       setLoading(false);
     };
     fetchData();
   }, [selectedDate]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="page">
@@ -248,15 +329,85 @@ const CommunityPage = () => {
                   <div className="pick-info">
                     <span className="pick-name">{pick.pick} ({pick.price > 0 ? '+' : ''}{pick.price})</span>
                   </div>
-                  <div className="pick-edge">{pick.totalEdge.toFixed(1)} wrq</div>
+                  <div className="pick-edge">{pick.totalEdge.toFixed(1)} CE</div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+        <div className="community-performance-section">
+          <div className="page-header">
+            <h2>Community Performance</h2>
+          </div>
+          <div className="models-grid">
+            <div className="model-card community performance" style={{ cursor: 'default' }}>
+              <h3 className="model-name">Top Picks</h3>
+              <div className="model-creator">🏋️ weightroom.io</div>
+              <div className="model-stats">
+                <div className="stat">
+                  <span className="stat-label">Record</span>
+                  <span className="stat-value">{topPicksPerformance.record}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Units Bet</span>
+                  <span className="stat-value">{topPicksPerformance.unitsBet}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Units Won</span>
+                  <span className="stat-value">{topPicksPerformance.unitsWon}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">ROI</span>
+                  <span className="stat-value">{topPicksPerformance.roi}</span>
+                </div>
+              </div>
+            </div>
+            <div className="model-card community performance" style={{ cursor: 'default' }}>
+              <h3 className="model-name">All Models</h3>
+              <div className="model-creator">🏋️ weightroom.io</div>
+              <div className="model-stats">
+                <div className="stat">
+                  <span className="stat-label">Record</span>
+                  <span className="stat-value">{getAllModelsStats().record}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Units Bet</span>
+                  <span className="stat-value">{getAllModelsStats().unitsBet}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">Units Won</span>
+                  <span className="stat-value">{getAllModelsStats().unitsWon}</span>
+                </div>
+                <div className="stat">
+                  <span className="stat-label">ROI</span>
+                  <span className="stat-value">{getAllModelsStats().roi}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="community-models-section">
-          <h2>Community Models</h2>
+          {isMobile ? (
+            <>
+              <h2 style={{ textAlign: 'center', marginBottom: '1rem' }}>Community Models</h2>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.9rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                <span onClick={showAllCards} style={{ cursor: 'pointer', color: 'var(--primary)' }}>Show All</span>
+                <span>/</span>
+                <span onClick={hideAllCards} style={{ cursor: 'pointer', color: 'var(--primary)' }}>Hide All</span>
+              </div>
+            </>
+          ) : (
+            <div className="page-header">
+              <h2>Community Models</h2>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <span onClick={showAllCards} style={{ cursor: 'pointer', color: 'var(--primary)' }}>Show All</span>
+                <span>/</span>
+                <span onClick={hideAllCards} style={{ cursor: 'pointer', color: 'var(--primary)' }}>Hide All</span>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="loading">Loading community models...</div>
           ) : communityModels.length === 0 ? (
@@ -265,31 +416,44 @@ const CommunityPage = () => {
             <div className="models-grid">
               {communityModels.map((model, index) => {
                 const modelStyle = getModelStyle(model.tenDigit);
+                const isCollapsed = collapsedCards.has(index);
                 return (
-                  <div key={index} className="model-card community" style={modelStyle}>
+                  <div 
+                    key={index} 
+                    className={`model-card community ${isCollapsed ? 'collapsed' : ''}`} 
+                    style={{
+                      ...modelStyle,
+                      alignSelf: isCollapsed ? 'start' : 'stretch'
+                    }}
+                    onClick={() => toggleCardCollapse(index)}
+                  >
                     <h3 className="model-name" style={{ color: modelStyle.colors.primary, fontSize: '1.5rem', marginBottom: '0.1rem' }}>{model.modelName}</h3>
                     <div className="model-creator" style={{ color: modelStyle.colors.secondary, textAlign: 'center' }}>{model.userName}</div>
                     <div className="model-stats">
                       <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Style</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.bettingStyle}</span>
-                      </div>
-                      <div className="stat">
                         <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Record</span>
                         <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span>
                       </div>
-                      <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Bet</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsBet}</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Won</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon > 0 ? '+' : ''}{model.unitsWon}</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-label" style={{ color: modelStyle.colors.primary }}>ROI</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
-                      </div>
+                      {!isCollapsed && (
+                        <>
+                          <div className="stat">
+                            <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Style</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.bettingStyle}</span>
+                          </div>
+                          <div className="stat">
+                            <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Bet</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsBet}</span>
+                          </div>
+                          <div className="stat">
+                            <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Won</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon > 0 ? '+' : ''}{model.unitsWon}</span>
+                          </div>
+                          <div className="stat">
+                            <span className="stat-label" style={{ color: modelStyle.colors.primary }}>ROI</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

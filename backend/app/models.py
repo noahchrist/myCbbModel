@@ -420,3 +420,134 @@ async def get_model_daily_picks(date: str, model_id: int, user_id: str):
     
     conn.close()
     return {"picks": picks}
+async def get_top_picks_performance():
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Get all eligible dates with completed games
+    cursor.execute("""
+        SELECT DISTINCT game_date 
+        FROM modelPredictions 
+        WHERE is_completed = 1
+        ORDER BY game_date
+    """)
+    
+    eligible_dates = [row[0] for row in cursor.fetchall()]
+    
+    total_wins = 0
+    total_losses = 0
+    total_units_bet = 0
+    total_units_won = 0
+    
+    for date in eligible_dates:
+        # Get all predictions for this date
+        cursor.execute("""
+            SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
+                   fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
+            FROM modelPredictions 
+            WHERE game_date = ? AND is_completed = 1
+        """, (date,))
+        
+        bets = []
+        for row in cursor.fetchall():
+            game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
+            
+            # Extract pick from summary
+            pick = ""
+            if summary and "Pick:" in summary:
+                pick = summary.split("Pick:")[1].strip()
+            
+            bets.append({
+                "gameId": game_id,
+                "pick": pick,
+                "edge": edge,
+                "homeTeam": home_team,
+                "awayTeam": away_team,
+                "wl": w_l,
+                "modelId": model_id,
+                "prices": {
+                    "homeSpread": home_spread_price,
+                    "awaySpread": away_spread_price,
+                    "over": over_price,
+                    "under": under_price
+                }
+            })
+        
+        # Get unique model count for this date
+        unique_model_ids = set(bet["modelId"] for bet in bets)
+        total_model_count = len(unique_model_ids)
+        
+        if total_model_count == 0:
+            continue
+            
+        # Aggregate bets by unique pick (same logic as fetchTopPicks)
+        pick_map = {}
+        
+        for bet in bets:
+            if bet["pick"] and bet["gameId"]:
+                unique_key = f"{bet['gameId']}:{bet['pick']}:{bet['wl'] or 'pending'}"
+                
+                # Determine price based on pick type
+                price = 0
+                if 'Over' in bet["pick"] or 'Under' in bet["pick"]:
+                    price = bet["prices"]["over"] if 'Over' in bet["pick"] else bet["prices"]["under"]
+                else:
+                    # Spread bet
+                    if bet["homeTeam"] in bet["pick"]:
+                        price = bet["prices"]["homeSpread"]
+                    else:
+                        price = bet["prices"]["awaySpread"]
+                
+                if unique_key in pick_map:
+                    pick_map[unique_key]["totalEdge"] += bet["edge"]
+                    pick_map[unique_key]["modelCount"] += 1
+                else:
+                    pick_map[unique_key] = {
+                        "totalEdge": bet["edge"],
+                        "modelCount": 1,
+                        "price": price,
+                        "result": bet["wl"]
+                    }
+        
+        # Filter and sort top picks (same logic as fetchTopPicks)
+        top_picks = []
+        for key, data in pick_map.items():
+            avg_edge = data["totalEdge"] / total_model_count
+            if avg_edge >= 3.0:
+                top_picks.append({
+                    "avgEdge": avg_edge,
+                    "price": data["price"],
+                    "result": data["result"]
+                })
+        
+        # Sort by edge and take top 5
+        top_picks.sort(key=lambda x: x["avgEdge"], reverse=True)
+        top_picks = top_picks[:5]
+        
+        # Calculate performance for this date's top picks
+        for pick in top_picks:
+            total_units_bet += 1  # 1 unit per bet
+            
+            if pick["result"] == 'w':
+                total_wins += 1
+                # Calculate winning units based on price
+                if pick["price"] > 0:
+                    total_units_won += pick["price"] / 100  # +150 = 1.5 units won
+                else:
+                    total_units_won += 100 / abs(pick["price"])  # -110 = 0.91 units won
+            elif pick["result"] == 'l':
+                total_losses += 1
+                total_units_won -= 1  # Lose 1 unit
+    
+    # Calculate final stats
+    roi = (total_units_won / total_units_bet * 100) if total_units_bet > 0 else 0
+    
+    conn.close()
+    
+    return {
+        "record": f"{total_wins}-{total_losses}",
+        "unitsBet": round(total_units_bet, 2),
+        "unitsWon": round(total_units_won, 2),
+        "roi": round(roi, 1)
+    }

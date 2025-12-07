@@ -335,13 +335,9 @@ try:
             
             # Make spread predictions
             spread_predictions = spread_model.predict(X)
-            spread_jitter = np.random.uniform(-0.4, 0.4, len(spread_predictions))
-            spread_predictions += spread_jitter
             
             # Make total predictions
             total_predictions = total_model.predict(X)
-            total_jitter = np.random.uniform(-0.4, 0.4, len(total_predictions))
-            total_predictions += total_jitter
             
             # Apply bias to total predictions
             total_predictions += total_bias
