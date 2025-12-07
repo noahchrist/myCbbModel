@@ -233,7 +233,7 @@ const ModelsPage = ({ user }: ModelsPageProps) => {
                     {modelPicks[model.id]?.slice(0, 5).map((pick, index) => (
                       <div key={index} style={{ marginBottom: '0.75rem' }}>
                         <div style={{ fontWeight: 'bold', color: modelStyle.colors.primary, marginBottom: '0.25rem' }}>
-                          {index + 1}. {pick.homeTeam} vs {pick.awayTeam}
+                          ({pick.unitsBet}u) {pick.homeTeam} vs {pick.awayTeam}
                         </div>
                         <div>{pick.summary}</div>
                       </div>

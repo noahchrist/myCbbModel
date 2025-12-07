@@ -145,19 +145,7 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '2px solid #4a7c59', paddingBottom: '0.5rem', marginBottom: '1rem', position: 'relative' }}>
               <h2 style={{ margin: 0 }}>Feature Configuration</h2>
               <span 
-                style={{ 
-                  cursor: 'pointer', 
-                  fontSize: '0.875rem', 
-                  color: '#4a7c59', 
-                  fontWeight: 'bold',
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  border: '1px solid #4a7c59',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
+                className="tooltip-trigger"
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
                 onClick={() => setShowTooltip(!showTooltip)}
@@ -165,21 +153,7 @@ const CreateModelPage = ({ user, onBack, onModelCreated }: CreateModelPageProps)
                 ?
               </span>
               {showTooltip && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: '0',
-                  backgroundColor: 'white',
-                  border: '1px solid #4a7c59',
-                  borderRadius: '8px',
-                  padding: '1rem',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  zIndex: 1000,
-                  width: '300px',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.4',
-                  textAlign: 'center'
-                }}>
+                <div className="tooltip">
                   Control how much weight your model gives to different statistics when making predictions. Adjust based on what you think matters most for winning games.
                 </div>
               )}

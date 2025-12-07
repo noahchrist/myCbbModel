@@ -1585,3 +1585,34 @@ body::before {
 .model-card.performance .stat-value {
   color: #666666 !important;
 }
+
+/* Tooltip Styles */
+.tooltip-trigger {
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #4a7c59;
+  font-weight: bold;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #4a7c59;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border: 1px solid #4a7c59;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  width: 300px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  text-align: center;
+}

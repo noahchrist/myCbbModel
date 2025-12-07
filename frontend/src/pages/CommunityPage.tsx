@@ -66,6 +66,7 @@ const CommunityPage = () => {
     unitsWon: '0',
     roi: '0%'
   });
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const getModelColors = (tenDigit: number) => {
     if (!tenDigit) return { primary: '#333', secondary: '#666' };
@@ -308,7 +309,22 @@ const CommunityPage = () => {
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Top Picks</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
+          <h2>Top Picks</h2>
+          <span 
+            className="tooltip-trigger"
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+            onClick={() => setShowTooltip(!showTooltip)}
+          >
+            ?
+          </span>
+          {showTooltip && (
+            <div className="tooltip">
+              A summary of the top picks based on the predictions of all community models (CE = Composite Edge)
+            </div>
+          )}
+        </div>
         <div className="date-nav">
           <button onClick={() => changeDate(-1)} className="btn btn-outline">←</button>
           <span className="selected-date">{formatDate(selectedDate)}</span>
