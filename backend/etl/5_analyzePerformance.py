@@ -116,8 +116,8 @@ def analyze_completed_games():
             
             logger.info(f"Updated prediction {pred_id}: {w_l} ({units_won:+.2f} units)")
         
-        # Recalculate ALL model stats from scratch
-        cursor.execute("SELECT id FROM modelDetails")
+        # Recalculate stats for active models only (exclude soft-deleted)
+        cursor.execute("SELECT id FROM modelDetails WHERE modelPath IS NOT NULL")
         all_model_ids = [row[0] for row in cursor.fetchall()]
         
         for model_id in all_model_ids:

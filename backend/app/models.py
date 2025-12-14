@@ -47,7 +47,7 @@ async def get_user_models(user_id: str):
            m.weightPerDef, m.weightIntDef, m.weightBoards, m.weightPlaymaking, m.weightIntangibles
            FROM modelDetails m
            LEFT JOIN modelPredictions p ON m.id = p.modelId
-           WHERE m.userId = ?
+           WHERE m.userId = ? AND m.modelPath IS NOT NULL
            GROUP BY m.id""",
         (user_id,)
     )
@@ -102,14 +102,14 @@ async def create_model(request: ModelCreate, user_id: str):
         print(f"User role: {user_role}, is_admin: {is_admin}")
         
         if not is_admin:
-            cursor.execute("SELECT COUNT(*) FROM modelDetails WHERE userId = ?", (user_id,))
+            cursor.execute("SELECT COUNT(*) FROM modelDetails WHERE userId = ? AND modelPath IS NOT NULL", (user_id,))
             model_count = cursor.fetchone()[0]
-            print(f"Current model count: {model_count}")
+            print(f"Current active model count: {model_count}")
             if model_count >= 2:
                 conn.close()
                 raise HTTPException(status_code=400, detail="You are only allowed 2 models, either delete or edit an existing model")
         
-        # Generate unique model seed
+        # Generate unique model seed (check all models, including soft-deleted ones)
         while True:
             model_seed = random.randint(100, 999)
             cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
@@ -206,7 +206,7 @@ async def get_community_models():
     
     cursor.execute(
         """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
-           m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall
+           m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall, m.modelPath
            FROM modelDetails m
            LEFT JOIN users u ON m.userId = u.id
            ORDER BY CASE WHEN m.unitsBetOverall > 0 THEN m.unitsWonOverall / m.unitsBetOverall ELSE 0 END DESC"""
@@ -214,7 +214,7 @@ async def get_community_models():
     
     models = []
     for row in cursor.fetchall():
-        model_id, name, user, created, style, ten_digit, w_l_overall, units_bet, units_won = row
+        model_id, name, user, created, style, ten_digit, w_l_overall, units_bet, units_won, model_path = row
         
         # Parse wins/losses from w_l_overall (format: "1-0")
         wins, losses = 0, 0
@@ -237,7 +237,8 @@ async def get_community_models():
             "losses": losses,
             "unitsBet": round(units_bet or 0, 2),
             "unitsWon": round(units_won or 0, 2),
-            "roi": round(roi, 1)
+            "roi": round(roi, 1),
+            "isActive": model_path is not None
         })
     
     conn.close()
@@ -276,10 +277,10 @@ async def delete_model(model_id: int, user_id: str):
                 os.remove(combined_paths)
                 print(f"Deleted model file: {combined_paths}")
         
-        # Delete from database tables
-        cursor.execute("DELETE FROM modelPredictions WHERE modelId = ?", (model_id,))
-        cursor.execute("DELETE FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+        # Soft delete: clear modelPath but keep model record for historical accuracy
+        cursor.execute("UPDATE modelDetails SET modelPath = NULL WHERE id = ? AND userId = ?", (model_id, user_id))
         cursor.execute("UPDATE modelNames SET userId = NULL WHERE modelName = ? AND userId = ?", (model_name, user_id))
+        # Note: modelPredictions and modelDetails record are kept to preserve historical data
         
         conn.commit()
         conn.close()
@@ -297,7 +298,7 @@ async def get_model_history(model_id: int, user_id: str = None):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Verify model exists (no ownership check for community viewing)
+    # Check if model exists in modelDetails (works for both active and soft-deleted models)
     cursor.execute("SELECT id FROM modelDetails WHERE id = ?", (model_id,))
     if not cursor.fetchone():
         conn.close()
@@ -350,7 +351,7 @@ async def get_todays_top_picks(date: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Get all predictions for the specified date with game_id, summary, teams, edge, w_l, modelId, and all prices
+    # Get all predictions for the specified date (includes orphaned predictions from deleted models)
     cursor.execute("""
         SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
                fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
@@ -392,8 +393,8 @@ async def get_model_daily_picks(date: str, model_id: int, user_id: str):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Verify model ownership
-    cursor.execute("SELECT id FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+    # Verify model ownership and that it's not soft-deleted
+    cursor.execute("SELECT id FROM modelDetails WHERE id = ? AND userId = ? AND modelPath IS NOT NULL", (model_id, user_id))
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Model not found")
@@ -420,6 +421,7 @@ async def get_model_daily_picks(date: str, model_id: int, user_id: str):
     
     conn.close()
     return {"picks": picks}
+
 async def get_top_picks_performance():
     db_path = os.environ.get('DB_PATH')
     conn = sqlite3.connect(db_path)

@@ -13,6 +13,7 @@ interface CommunityModel {
   unitsBet: number;
   unitsWon: number;
   roi: number;
+  isActive: boolean;
 }
 
 interface Bet {
@@ -66,6 +67,7 @@ const CommunityPage = () => {
     unitsWon: '0',
     roi: '0%'
   });
+  const [allModelsData, setAllModelsData] = useState<CommunityModel[]>([]);
   const [showTooltip, setShowTooltip] = useState(false);
 
   const getModelColors = (tenDigit: number) => {
@@ -117,14 +119,20 @@ const CommunityPage = () => {
     try {
       const response = await fetch(`${API_URL}/community-models`);
       const data = await response.json();
-      setCommunityModels(data.models || []);
+      const allModels = data.models || [];
+      // Filter to only show active models for display
+      const activeModels = allModels.filter((model: CommunityModel) => model.isActive);
+      setCommunityModels(activeModels);
       // Initialize collapsed state - collapse all except top row
       const cardsPerRow = getCardsPerRow();
       const initialCollapsed = new Set<number>();
-      data.models?.forEach((model: CommunityModel, index: number) => {
+      activeModels.forEach((model: CommunityModel, index: number) => {
         if (index >= cardsPerRow) initialCollapsed.add(index);
       });
       setCollapsedCards(initialCollapsed);
+      
+      // Store all models (including deleted) for All Models stats calculation
+      setAllModelsData(allModels);
     } catch (error) {
       console.error('Error fetching community models:', error);
     }
@@ -261,10 +269,11 @@ const CommunityPage = () => {
   };
 
   const getAllModelsStats = () => {
-    const totalWins = communityModels.reduce((sum, model) => sum + model.wins, 0);
-    const totalLosses = communityModels.reduce((sum, model) => sum + model.losses, 0);
-    const totalUnitsBet = communityModels.reduce((sum, model) => sum + model.unitsBet, 0);
-    const totalUnitsWon = communityModels.reduce((sum, model) => sum + model.unitsWon, 0);
+    // Use all models data (including deleted ones) for comprehensive stats
+    const totalWins = allModelsData.reduce((sum, model) => sum + model.wins, 0);
+    const totalLosses = allModelsData.reduce((sum, model) => sum + model.losses, 0);
+    const totalUnitsBet = allModelsData.reduce((sum, model) => sum + model.unitsBet, 0);
+    const totalUnitsWon = allModelsData.reduce((sum, model) => sum + model.unitsWon, 0);
     const roi = totalUnitsBet > 0 ? (totalUnitsWon / totalUnitsBet * 100) : 0;
     
     return {
