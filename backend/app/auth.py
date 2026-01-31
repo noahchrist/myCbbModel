@@ -1,74 +1,55 @@
-from fastapi import Request, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import Request, HTTPException
 from supabase import Client
-import sqlite3
-import os
-import random
-from dotenv import load_dotenv
 
-load_dotenv()
-
-class UserCreate(BaseModel):
-    displayName: str
-
-async def get_current_user(request: Request, supabase: Client):
+async def get_current_user(request: Request, supabase: Client) -> str:
+    """
+    Extract and validate user from JWT token.
+    Returns user_id (UUID) from Supabase auth.
+    
+    Raises HTTPException if token is invalid or missing.
+    """
     auth_header = request.headers.get("Authorization")
     
     if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing token")
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = auth_header.split(" ", 1)[1]
     
     try:
-        claims = supabase.auth.get_claims(token)
-        user_id = claims.get("claims", {}).get("sub")
+        # Verify token and get user
+        user_response = supabase.auth.get_user(jwt=token)
+        user_id = user_response.user.id
+        
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return user_id
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-def sync_user_in_local_db(supabase_user_id: str, email: str = None, display_name: str = None):
-    try:
-        print(f"sync_user_in_local_db called: user_id={supabase_user_id}, email={email}, display_name={display_name}")
-        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+            raise HTTPException(status_code=401, detail="Invalid token: no user ID")
         
-        if not os.path.exists(db_path):
-            print("Database file does not exist")
-            return
+        return str(user_id)  # Return as string (UUID)
         
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT id FROM users WHERE id = ?", (supabase_user_id,))
-        row = cursor.fetchone()
-        print(f"Existing user check: {row}")
-        
-        if row is None:
-            if display_name:
-                final_display_name = display_name
-                print(f"Using custom display name: {final_display_name}")
-            elif email:
-                email_prefix = email.split('@')[0]
-                random_digits = random.randint(1000, 9999)
-                final_display_name = f"{email_prefix}{random_digits}"
-                print(f"Using generated display name: {final_display_name}")
-            else:
-                print("No display name or email provided")
-                return
-            
-            print(f"Inserting user: {supabase_user_id}, {final_display_name}")
-            cursor.execute(
-                "INSERT INTO users (id, displayName) VALUES (?, ?)",
-                (supabase_user_id, final_display_name)
-            )
-            conn.commit()
-            print("User inserted successfully")
-        else:
-            print("User already exists")
-        
-        conn.close()
     except Exception as e:
-        print(f"Error in sync_user_in_local_db: {e}")
-        import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+
+async def get_user_display_name(supabase: Client, token: str) -> str:
+    """
+    Optional helper: Get display name from Supabase user_metadata.
+    
+    Returns display name if set, otherwise returns email prefix.
+    """
+    try:
+        user_response = supabase.auth.get_user(jwt=token)
+        user = user_response.user
+        
+        # Try to get display_name from user_metadata
+        display_name = user.user_metadata.get('display_name')
+        
+        if display_name:
+            return display_name
+        
+        # Fallback: use email prefix
+        if user.email:
+            return user.email.split('@')[0]
+        
+        return "User"
+        
+    except Exception:
+        return "User"

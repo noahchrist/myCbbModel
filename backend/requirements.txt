@@ -19,6 +19,7 @@ python-dotenv
 
 # Database
 sqlalchemy
+psycopg2-binary
 
 # Data processing and ML
 pandas

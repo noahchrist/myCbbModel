@@ -1,17 +1,7 @@
 from pydantic import BaseModel
 from fastapi import HTTPException
-import sqlite3
-import os
-import random
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-import joblib
-from dotenv import load_dotenv
-
-load_dotenv()
+from supabase import Client
+from typing import Optional
 
 class ModelCreate(BaseModel):
     modelName: str
@@ -20,536 +10,143 @@ class ModelCreate(BaseModel):
     weights: dict
     rejectedNames: list
 
-async def get_model_names():
-    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT modelName FROM modelNames WHERE userId IS NULL ORDER BY RANDOM() LIMIT 5")
-    names = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    
+async def get_model_names(supabase: Client):
+    """Get 5 random available model names"""
+    response = supabase.table('model_names').select('model_name').is_('user_id', 'null').limit(5).execute()
+    names = [row['model_name'] for row in response.data]
     return {"names": names}
 
-async def get_user_models(user_id: str):
-    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        """SELECT m.id, m.modelName, m.dateCreated, m.bettingStyle, m.tenDigit,
-           COUNT(p.predictionId) as totalPredictions,
-           SUM(CASE WHEN p.unitsWon > 0 THEN 1 ELSE 0 END) as wins,
-           SUM(CASE WHEN p.unitsWon < 0 THEN 1 ELSE 0 END) as losses,
-           SUM(p.unitsWon) as unitsWon,
-           SUM(p.unitsBet) as unitsBet,
-           m.weightGenOff, m.weightGenDef, m.weightPace, m.weightThrees, m.weightFts,
-           m.weightPerDef, m.weightIntDef, m.weightBoards, m.weightPlaymaking, m.weightIntangibles
-           FROM modelDetails m
-           LEFT JOIN modelPredictions p ON m.id = p.modelId
-           WHERE m.userId = ? AND m.modelPath IS NOT NULL
-           GROUP BY m.id""",
-        (user_id,)
-    )
-    
-    models = []
-    for row in cursor.fetchall():
-        model_id, name, created, style, ten_digit, total, wins, losses, units_won, units_bet, w_gen_off, w_gen_def, w_pace, w_threes, w_fts, w_per_def, w_int_def, w_boards, w_playmaking, w_intangibles = row
-        roi = (units_won / units_bet * 100) if units_bet and units_won and units_bet > 0 else 0
-        
-        models.append({
-            "id": model_id,
-            "modelName": name,
-            "dateCreated": created,
-            "bettingStyle": style,
-            "tenDigit": ten_digit,
-            "featuredPick": "TBD",
-            "wins": wins or 0,
-            "losses": losses or 0,
-            "unitsBet": round(units_bet or 0, 2),
-            "unitsWon": round(units_won or 0, 2),
-            "roi": round(roi, 1),
-            "weights": {
-                "weightGenOff": w_gen_off or 0,
-                "weightGenDef": w_gen_def or 0,
-                "weightPace": w_pace or 0,
-                "weightThrees": w_threes or 0,
-                "weightFts": w_fts or 0,
-                "weightPerDef": w_per_def or 0,
-                "weightIntDef": w_int_def or 0,
-                "weightBoards": w_boards or 0,
-                "weightPlaymaking": w_playmaking or 0,
-                "weightIntangibles": w_intangibles or 0
-            }
-        })
-    
-    conn.close()
-    return {"models": models}
+async def create_model(request: ModelCreate, user_id: str, supabase: Client):
+    """Create a new model (placeholder - will implement training logic later)"""
+    # TODO: Implement model training and storage logic
+    raise HTTPException(status_code=501, detail="Model creation not yet implemented")
 
-async def create_model(request: ModelCreate, user_id: str):
+async def delete_model(model_id: int, user_id: str, supabase: Client):
+    """Soft delete a model by clearing model_path"""
     try:
-        print(f"Creating model for user: {user_id}")
-        print(f"Request data: {request.dict()}")
-        
-        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check user role and model count
-        cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
-        user_role = cursor.fetchone()
-        is_admin = user_role and user_role[0] == 'admin'
-        print(f"User role: {user_role}, is_admin: {is_admin}")
-        
-        if not is_admin:
-            cursor.execute("SELECT COUNT(*) FROM modelDetails WHERE userId = ? AND modelPath IS NOT NULL", (user_id,))
-            model_count = cursor.fetchone()[0]
-            print(f"Current active model count: {model_count}")
-            if model_count >= 2:
-                conn.close()
-                raise HTTPException(status_code=400, detail="You are only allowed 2 models, either delete or edit an existing model")
-        
-        # Generate unique model seed (check all models, including soft-deleted ones)
-        while True:
-            model_seed = random.randint(100, 999)
-            cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
-            if not cursor.fetchone():
-                break
-        print(f"Generated model seed: {model_seed}")
-        
-        # Load training data and fit models
-        print("Loading training data...")
-        df_train = pd.read_sql("SELECT * FROM setAlpha", conn)
-        print(f"Training data shape: {df_train.shape}")
-        
-        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "home_kpid", "away_kpid"]
-        feature_cols = [c for c in df_train.columns if c not in drop_cols]
-        print(f"Feature columns: {len(feature_cols)}")
-        
-        X = df_train[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
-        
-        # Fit spread model (pt_diff)
-        y_spread = pd.to_numeric(df_train["pt_diff"], errors="coerce").fillna(0)
-        X_train, X_test, y_train_spread, y_test_spread = train_test_split(X, y_spread, test_size=0.2, random_state=model_seed)
-        model_spread = LinearRegression()
-        model_spread.fit(X_train, y_train_spread)
-        print("Spread model fitted successfully")
-        
-        # Fit total model (pt_total)
-        y_total = pd.to_numeric(df_train["pt_total"], errors="coerce").fillna(0)
-        _, _, y_train_total, y_test_total = train_test_split(X, y_total, test_size=0.2, random_state=model_seed)
-        model_total = LinearRegression()
-        model_total.fit(X_train, y_train_total)
-        print("Total model fitted successfully")
-        
-        # Save models to joblib files
-        model_fits_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'modelFits'))
-        spread_filename = f"modelSpread_{model_seed}.joblib"
-        total_filename = f"modelTotal_{model_seed}.joblib"
-        spread_path = os.path.join(model_fits_dir, spread_filename)
-        total_path = os.path.join(model_fits_dir, total_filename)
-        
-        joblib.dump(model_spread, spread_path)
-        joblib.dump(model_total, total_path)
-        print(f"Spread model saved to: {spread_path}")
-        print(f"Total model saved to: {total_path}")
-        
-        # Insert model details with both paths separated by semicolon
-        print("Inserting model details...")
-        combined_paths = f"{spread_path};{total_path}"
-        cursor.execute(
-            """INSERT INTO modelDetails 
-               (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, modelPath,
-                weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
-                weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, request.modelName, datetime.now(ZoneInfo("America/New_York")).isoformat(), model_seed, 
-             request.bettingStyle, request.tenDigit, combined_paths,
-             request.weights['weightGenOff'], request.weights['weightGenDef'], 
-             request.weights['weightPace'], request.weights['weightThrees'], 
-             request.weights['weightFts'], request.weights['weightPerDef'], 
-             request.weights['weightIntDef'], request.weights['weightBoards'], 
-             request.weights['weightPlaymaking'], request.weights['weightIntangibles'])
-        )
-        
-        cursor.execute("UPDATE modelNames SET userId = ? WHERE modelName = ?", (user_id, request.modelName))
-        
-        for rejected_name in request.rejectedNames:
-            cursor.execute(
-                "UPDATE modelNames SET timesRejected = timesRejected + 1 WHERE modelName = ?", 
-                (rejected_name,)
-            )
-        
-        conn.commit()
-        conn.close()
-        print("Model created successfully")
-        
-        return {"message": "Model created successfully", "modelSeed": model_seed}
-        
-    except HTTPException:
-        if 'conn' in locals():
-            conn.close()
-        raise
-    except Exception as e:
-        print(f"Error creating model: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        if 'conn' in locals():
-            conn.close()
-        raise HTTPException(status_code=500, detail=f"Error creating model: {str(e)}")
-
-async def get_community_models():
-    db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
-           m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall, m.modelPath
-           FROM modelDetails m
-           LEFT JOIN users u ON m.userId = u.id
-           ORDER BY CASE WHEN m.unitsBetOverall > 0 THEN m.unitsWonOverall / m.unitsBetOverall ELSE 0 END DESC"""
-    )
-    
-    models = []
-    for row in cursor.fetchall():
-        model_id, name, user, created, style, ten_digit, w_l_overall, units_bet, units_won, model_path = row
-        
-        # Parse wins/losses from w_l_overall (format: "1-0")
-        wins, losses = 0, 0
-        if w_l_overall:
-            try:
-                wins, losses = map(int, w_l_overall.split('-'))
-            except:
-                wins, losses = 0, 0
-        
-        roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
-        
-        models.append({
-            "id": model_id,
-            "modelName": name,
-            "userName": user or "Anonymous",
-            "dateCreated": created,
-            "bettingStyle": style,
-            "tenDigit": ten_digit,
-            "wins": wins,
-            "losses": losses,
-            "unitsBet": round(units_bet or 0, 2),
-            "unitsWon": round(units_won or 0, 2),
-            "roi": round(roi, 1),
-            "isActive": model_path is not None
-        })
-    
-    conn.close()
-    return {"models": models}
-
-async def delete_model(model_id: int, user_id: str):
-    try:
-        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
         # Get model details
-        cursor.execute("SELECT modelName, modelPath FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
-        result = cursor.fetchone()
-        if not result:
-            conn.close()
+        response = supabase.table('model_details').select('model_name, model_path').eq('model_id', model_id).eq('user_id', user_id).execute()
+        
+        if not response.data:
             raise HTTPException(status_code=404, detail="Model not found")
         
-        model_name, combined_paths = result
+        model_name = response.data[0]['model_name']
         
-        # Delete joblib files
-        if combined_paths:
-            if ';' in combined_paths:
-                # New format with both spread and total paths
-                spread_path, total_path = combined_paths.split(';')
-                
-                if spread_path and os.path.exists(spread_path):
-                    os.remove(spread_path)
-                    print(f"Deleted spread model file: {spread_path}")
-                
-                if total_path and os.path.exists(total_path):
-                    os.remove(total_path)
-                    print(f"Deleted total model file: {total_path}")
-            elif os.path.exists(combined_paths):
-                # Old single-path format
-                os.remove(combined_paths)
-                print(f"Deleted model file: {combined_paths}")
-        
-        # Soft delete: clear modelPath but keep model record for historical accuracy
-        cursor.execute("UPDATE modelDetails SET modelPath = NULL WHERE id = ? AND userId = ?", (model_id, user_id))
-        cursor.execute("UPDATE modelNames SET userId = NULL WHERE modelName = ? AND userId = ?", (model_name, user_id))
-        # Note: modelPredictions and modelDetails record are kept to preserve historical data
-        
-        conn.commit()
-        conn.close()
+        # Soft delete: clear model_path but keep record for historical accuracy
+        supabase.table('model_details').update({'model_path': None}).eq('model_id', model_id).eq('user_id', user_id).execute()
+        supabase.table('model_names').update({'user_id': None}).eq('model_name', model_name).eq('user_id', user_id).execute()
         
         return {"message": "Model deleted successfully"}
         
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error deleting model: {str(e)}")
-        if 'conn' in locals():
-            conn.close()
         raise HTTPException(status_code=500, detail=f"Error deleting model: {str(e)}")
 
-async def get_model_history(model_id: int, user_id: str = None):
-    db_path = os.environ.get('DB_PATH')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Check if model exists in modelDetails (works for both active and soft-deleted models)
-    cursor.execute("SELECT id FROM modelDetails WHERE id = ?", (model_id,))
-    if not cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=404, detail="Model not found")
-    
-    # Get prediction history with all needed fields
-    cursor.execute("""
-        SELECT game_date, home_team, away_team, bet_type, predicted_pt_diff, predicted_pt_total,
-               fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
-               fd_over, fd_overPrice, fd_under, fd_underPrice, unitsBet, unitsWon, w_l
-        FROM modelPredictions 
-        WHERE modelId = ? AND is_completed = 1
-        ORDER BY game_date DESC
-    """, (model_id,))
-    
-    predictions = []
-    for row in cursor.fetchall():
-        date, home_team, away_team, bet_type, pred_diff, pred_total, home_spread, home_price, away_spread, away_price, over_line, over_price, under_line, under_price, units_bet, units_won, w_l = row
+async def get_model_data(model_id: int, user_id: str, supabase: Client, date: Optional[str] = None):
+    """
+    Get comprehensive model data including details, predictions, and performance.
+    If date is provided, only return predictions for that date.
+    """
+    try:
+        # Get model details
+        model_response = supabase.table('model_details').select('''
+            model_id, model_name, created_datetime, betting_style, ten_digit,
+            weight_gen_off, weight_gen_def, weight_pace, weight_threes, weight_fts,
+            weight_per_def, weight_int_def, weight_boards, weight_playmaking, weight_intangibles,
+            model_path
+        ''').eq('model_id', model_id).execute()
         
-        if bet_type == 'spread':
-            # Determine which team was picked
-            if pred_diff + home_spread > 0:
-                team_pick = f"{home_team} {home_spread:+.1f}"
-                price = home_price
-            else:
-                team_pick = f"{away_team} {away_spread:+.1f}"
-                price = away_price
-        else:  # bet_type == 'total'
-            # Determine over/under pick with team names
-            if pred_total > over_line:
-                team_pick = f"{away_team} vs {home_team} Over {over_line}"
-                price = over_price
-            else:
-                team_pick = f"{away_team} vs {home_team} Under {under_line}"
-                price = under_price
+        if not model_response.data:
+            raise HTTPException(status_code=404, detail="Model not found")
         
-        predictions.append({
-            "date": date,
-            "teamPick": team_pick,
-            "price": price,
-            "unitsWon": units_won,
-            "result": w_l
-        })
-    
-    conn.close()
-    return {"predictions": predictions}
-
-async def get_todays_top_picks(date: str):
-    db_path = os.environ.get('DB_PATH')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Get all predictions for the specified date (includes orphaned predictions from deleted models)
-    cursor.execute("""
-        SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
-               fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
-        FROM modelPredictions 
-        WHERE datePredicted = ?
-    """, (date,))
-    
-    bets = []
-    for row in cursor.fetchall():
-        game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
+        model = model_response.data[0]
         
-        # Extract pick from summary (text after 'Pick:')
-        pick = ""
-        if summary and "Pick:" in summary:
-            pick = summary.split("Pick:")[1].strip()
+        # Verify ownership for non-community models
+        if model.get('user_id') and model.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
         
-        bets.append({
-            "gameId": game_id,
-            "pick": pick,
-            "edge": edge,
-            "homeTeam": home_team,
-            "awayTeam": away_team,
-            "wl": w_l,
-            "modelId": model_id,
-            "prices": {
-                "homeSpread": home_spread_price,
-                "awaySpread": away_spread_price,
-                "over": over_price,
-                "under": under_price
-            }
-        })
-    
-    conn.close()
-    return {"bets": bets}
-
-
-async def get_model_daily_picks(date: str, model_id: int, user_id: str):
-    db_path = os.environ.get('DB_PATH')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Verify model ownership and that it's not soft-deleted
-    cursor.execute("SELECT id FROM modelDetails WHERE id = ? AND userId = ? AND modelPath IS NOT NULL", (model_id, user_id))
-    if not cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=404, detail="Model not found")
-    
-    # Get picks for the specified date
-    cursor.execute("""
-        SELECT summary, unitsBet, edge, home_team, away_team
-        FROM modelPredictions 
-        WHERE modelId = ? AND datePredicted = ?
-        ORDER BY edge DESC
-        LIMIT 5
-    """, (model_id, date))
-    
-    picks = []
-    for row in cursor.fetchall():
-        summary, units_bet, edge, home_team, away_team = row
-        picks.append({
-            "summary": summary,
-            "unitsBet": units_bet,
-            "edge": edge,
-            "homeTeam": home_team,
-            "awayTeam": away_team
-        })
-    
-    conn.close()
-    return {"picks": picks}
-
-async def get_top_picks_performance():
-    db_path = os.environ.get('DB_PATH')
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Get all eligible dates with completed games
-    cursor.execute("""
-        SELECT DISTINCT game_date 
-        FROM modelPredictions 
-        WHERE is_completed = 1
-        ORDER BY game_date
-    """)
-    
-    eligible_dates = [row[0] for row in cursor.fetchall()]
-    
-    total_wins = 0
-    total_losses = 0
-    total_units_bet = 0
-    total_units_won = 0
-    
-    for date in eligible_dates:
-        # Get all predictions for this date
-        cursor.execute("""
-            SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
-                   fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
-            FROM modelPredictions 
-            WHERE game_date = ? AND is_completed = 1
-        """, (date,))
+        # Build predictions query
+        predictions_query = supabase.table('model_predictions').select('*').eq('model_id', model_id)
         
-        bets = []
-        for row in cursor.fetchall():
-            game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
+        if date:
+            # Get predictions for specific date
+            predictions_query = predictions_query.eq('game_date', date)
+        else:
+            # Get all completed predictions for history
+            predictions_query = predictions_query.eq('is_completed', True).order('game_date', desc=True)
+        
+        predictions_response = predictions_query.execute()
+        
+        # Format predictions
+        predictions = []
+        total_wins = 0
+        total_losses = 0
+        total_units_bet = 0
+        total_units_won = 0
+        
+        for pred in predictions_response.data:
+            if pred.get('is_completed'):
+                # Calculate stats
+                if pred.get('is_won'):
+                    total_wins += 1
+                else:
+                    total_losses += 1
+                
+                total_units_bet += pred.get('units_bet', 0) or 0
+                total_units_won += pred.get('units_won', 0) or 0
             
-            # Extract pick from summary
-            pick = ""
-            if summary and "Pick:" in summary:
-                pick = summary.split("Pick:")[1].strip()
-            
-            bets.append({
-                "gameId": game_id,
-                "pick": pick,
-                "edge": edge,
-                "homeTeam": home_team,
-                "awayTeam": away_team,
-                "wl": w_l,
-                "modelId": model_id,
-                "prices": {
-                    "homeSpread": home_spread_price,
-                    "awaySpread": away_spread_price,
-                    "over": over_price,
-                    "under": under_price
-                }
+            predictions.append({
+                "predictionId": pred['prediction_id'],
+                "gameId": pred['game_id'],
+                "gameDate": pred['game_date'],
+                "homeTeam": pred['home_team_name'],
+                "awayTeam": pred['away_team_name'],
+                "predictedPtDiff": pred['predicted_pt_diff'],
+                "predictedPtTotal": pred['predicted_pt_total'],
+                "predictedEdge": pred['predicted_edge'],
+                "predictionSummary": pred['prediction_summary'],
+                "isCompleted": pred['is_completed'],
+                "isWon": pred['is_won'],
+                "unitsBet": pred['units_bet'],
+                "unitsWon": pred['units_won']
             })
         
-        # Get unique model count for this date
-        unique_model_ids = set(bet["modelId"] for bet in bets)
-        total_model_count = len(unique_model_ids)
+        # Calculate ROI
+        roi = (total_units_won / total_units_bet * 100) if total_units_bet > 0 else 0
         
-        if total_model_count == 0:
-            continue
-            
-        # Aggregate bets by unique pick (same logic as fetchTopPicks)
-        pick_map = {}
+        return {
+            "model": {
+                "id": model['model_id'],
+                "modelName": model['model_name'],
+                "dateCreated": model['created_datetime'],
+                "bettingStyle": model['betting_style'],
+                "tenDigit": model['ten_digit'],
+                "isActive": model['model_path'] is not None,
+                "weights": {
+                    "weightGenOff": model['weight_gen_off'],
+                    "weightGenDef": model['weight_gen_def'],
+                    "weightPace": model['weight_pace'],
+                    "weightThrees": model['weight_threes'],
+                    "weightFts": model['weight_fts'],
+                    "weightPerDef": model['weight_per_def'],
+                    "weightIntDef": model['weight_int_def'],
+                    "weightBoards": model['weight_boards'],
+                    "weightPlaymaking": model['weight_playmaking'],
+                    "weightIntangibles": model['weight_intangibles']
+                }
+            },
+            "performance": {
+                "wins": total_wins,
+                "losses": total_losses,
+                "unitsBet": round(total_units_bet, 2),
+                "unitsWon": round(total_units_won, 2),
+                "roi": round(roi, 1)
+            },
+            "predictions": predictions
+        }
         
-        for bet in bets:
-            if bet["pick"] and bet["gameId"]:
-                unique_key = f"{bet['gameId']}:{bet['pick']}:{bet['wl'] or 'pending'}"
-                
-                # Determine price based on pick type
-                price = 0
-                if 'Over' in bet["pick"] or 'Under' in bet["pick"]:
-                    price = bet["prices"]["over"] if 'Over' in bet["pick"] else bet["prices"]["under"]
-                else:
-                    # Spread bet
-                    if bet["homeTeam"] in bet["pick"]:
-                        price = bet["prices"]["homeSpread"]
-                    else:
-                        price = bet["prices"]["awaySpread"]
-                
-                if unique_key in pick_map:
-                    pick_map[unique_key]["totalEdge"] += bet["edge"]
-                    pick_map[unique_key]["modelCount"] += 1
-                else:
-                    pick_map[unique_key] = {
-                        "totalEdge": bet["edge"],
-                        "modelCount": 1,
-                        "price": price,
-                        "result": bet["wl"]
-                    }
-        
-        # Filter and sort top picks (same logic as fetchTopPicks)
-        top_picks = []
-        for key, data in pick_map.items():
-            avg_edge = data["totalEdge"] / total_model_count
-            if avg_edge >= 3.0:
-                top_picks.append({
-                    "avgEdge": avg_edge,
-                    "price": data["price"],
-                    "result": data["result"]
-                })
-        
-        # Sort by edge and take top 5
-        top_picks.sort(key=lambda x: x["avgEdge"], reverse=True)
-        top_picks = top_picks[:5]
-        
-        # Calculate performance for this date's top picks
-        for pick in top_picks:
-            total_units_bet += 1  # 1 unit per bet
-            
-            if pick["result"] == 'w':
-                total_wins += 1
-                # Calculate winning units based on price
-                if pick["price"] > 0:
-                    total_units_won += pick["price"] / 100  # +150 = 1.5 units won
-                else:
-                    total_units_won += 100 / abs(pick["price"])  # -110 = 0.91 units won
-            elif pick["result"] == 'l':
-                total_losses += 1
-                total_units_won -= 1  # Lose 1 unit
-    
-    # Calculate final stats
-    roi = (total_units_won / total_units_bet * 100) if total_units_bet > 0 else 0
-    
-    conn.close()
-    
-    return {
-        "record": f"{total_wins}-{total_losses}",
-        "unitsBet": round(total_units_bet, 2),
-        "unitsWon": round(total_units_won, 2),
-        "roi": round(roi, 1)
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching model data: {str(e)}")

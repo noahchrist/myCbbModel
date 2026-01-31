@@ -1,0 +1,234 @@
+async def get_top_picks_performance():
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Get all eligible dates with completed games
+    cursor.execute("""
+        SELECT DISTINCT game_date 
+        FROM modelPredictions 
+        WHERE is_completed = 1
+        ORDER BY game_date
+    """)
+    
+    eligible_dates = [row[0] for row in cursor.fetchall()]
+    
+    total_wins = 0
+    total_losses = 0
+    total_units_bet = 0
+    total_units_won = 0
+    
+    for date in eligible_dates:
+        # Get all predictions for this date
+        cursor.execute("""
+            SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
+                   fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
+            FROM modelPredictions 
+            WHERE game_date = ? AND is_completed = 1
+        """, (date,))
+        
+        bets = []
+        for row in cursor.fetchall():
+            game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
+            
+            # Extract pick from summary
+            pick = ""
+            if summary and "Pick:" in summary:
+                pick = summary.split("Pick:")[1].strip()
+            
+            bets.append({
+                "gameId": game_id,
+                "pick": pick,
+                "edge": edge,
+                "homeTeam": home_team,
+                "awayTeam": away_team,
+                "wl": w_l,
+                "modelId": model_id,
+                "prices": {
+                    "homeSpread": home_spread_price,
+                    "awaySpread": away_spread_price,
+                    "over": over_price,
+                    "under": under_price
+                }
+            })
+        
+        # Get unique model count for this date
+        unique_model_ids = set(bet["modelId"] for bet in bets)
+        total_model_count = len(unique_model_ids)
+        
+        if total_model_count == 0:
+            continue
+            
+        # Aggregate bets by unique pick (same logic as fetchTopPicks)
+        pick_map = {}
+        
+        for bet in bets:
+            if bet["pick"] and bet["gameId"]:
+                unique_key = f"{bet['gameId']}:{bet['pick']}:{bet['wl'] or 'pending'}"
+                
+                # Determine price based on pick type
+                price = 0
+                if 'Over' in bet["pick"] or 'Under' in bet["pick"]:
+                    price = bet["prices"]["over"] if 'Over' in bet["pick"] else bet["prices"]["under"]
+                else:
+                    # Spread bet
+                    if bet["homeTeam"] in bet["pick"]:
+                        price = bet["prices"]["homeSpread"]
+                    else:
+                        price = bet["prices"]["awaySpread"]
+                
+                if unique_key in pick_map:
+                    pick_map[unique_key]["totalEdge"] += bet["edge"]
+                    pick_map[unique_key]["modelCount"] += 1
+                else:
+                    pick_map[unique_key] = {
+                        "totalEdge": bet["edge"],
+                        "modelCount": 1,
+                        "price": price,
+                        "result": bet["wl"]
+                    }
+        
+        # Filter and sort top picks (same logic as fetchTopPicks)
+        top_picks = []
+        for key, data in pick_map.items():
+            avg_edge = data["totalEdge"] / total_model_count
+            if avg_edge >= 3.0:
+                top_picks.append({
+                    "avgEdge": avg_edge,
+                    "price": data["price"],
+                    "result": data["result"]
+                })
+        
+        # Sort by edge and take top 5
+        top_picks.sort(key=lambda x: x["avgEdge"], reverse=True)
+        top_picks = top_picks[:5]
+        
+        # Calculate performance for this date's top picks
+        for pick in top_picks:
+            total_units_bet += 1  # 1 unit per bet
+            
+            if pick["result"] == 'w':
+                total_wins += 1
+                # Calculate winning units based on price
+                if pick["price"] > 0:
+                    total_units_won += pick["price"] / 100  # +150 = 1.5 units won
+                else:
+                    total_units_won += 100 / abs(pick["price"])  # -110 = 0.91 units won
+            elif pick["result"] == 'l':
+                total_losses += 1
+                total_units_won -= 1  # Lose 1 unit
+    
+    # Calculate final stats
+    roi = (total_units_won / total_units_bet * 100) if total_units_bet > 0 else 0
+    
+    conn.close()
+    
+    return {
+        "record": f"{total_wins}-{total_losses}",
+        "unitsBet": round(total_units_bet, 2),
+        "unitsWon": round(total_units_won, 2),
+        "roi": round(roi, 1)
+    }
+
+
+
+
+
+    async def create_model(request: ModelCreate, user_id: str):
+    try:
+        print(f"Creating model for user: {user_id}")
+        print(f"Request data: {request.dict()}")
+        
+        db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+                
+        # Generate unique model seed (check all models, including soft-deleted ones)
+        while True:
+            model_seed = random.randint(100, 999)
+            cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
+            if not cursor.fetchone():
+                break
+        print(f"Generated model seed: {model_seed}")
+        
+        # Load training data and fit models
+        print("Loading training data...")
+        df_train = pd.read_sql("SELECT * FROM setAlpha", conn)
+        print(f"Training data shape: {df_train.shape}")
+        
+        drop_cols = ["id", "home_id", "away_id", "home_score", "away_score", "home_team", "away_team", "win_loss", "pt_diff", "pt_total", "date", "season", "home_kpid", "away_kpid"]
+        feature_cols = [c for c in df_train.columns if c not in drop_cols]
+        print(f"Feature columns: {len(feature_cols)}")
+        
+        X = df_train[feature_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        
+        # Fit spread model (pt_diff)
+        y_spread = pd.to_numeric(df_train["pt_diff"], errors="coerce").fillna(0)
+        X_train, X_test, y_train_spread, y_test_spread = train_test_split(X, y_spread, test_size=0.2, random_state=model_seed)
+        model_spread = LinearRegression()
+        model_spread.fit(X_train, y_train_spread)
+        print("Spread model fitted successfully")
+        
+        # Fit total model (pt_total)
+        y_total = pd.to_numeric(df_train["pt_total"], errors="coerce").fillna(0)
+        _, _, y_train_total, y_test_total = train_test_split(X, y_total, test_size=0.2, random_state=model_seed)
+        model_total = LinearRegression()
+        model_total.fit(X_train, y_train_total)
+        print("Total model fitted successfully")
+        
+        # Save models to joblib files
+        model_fits_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'modelFits'))
+        spread_filename = f"modelSpread_{model_seed}.joblib"
+        total_filename = f"modelTotal_{model_seed}.joblib"
+        spread_path = os.path.join(model_fits_dir, spread_filename)
+        total_path = os.path.join(model_fits_dir, total_filename)
+        
+        joblib.dump(model_spread, spread_path)
+        joblib.dump(model_total, total_path)
+        print(f"Spread model saved to: {spread_path}")
+        print(f"Total model saved to: {total_path}")
+        
+        # Insert model details with both paths separated by semicolon
+        print("Inserting model details...")
+        combined_paths = f"{spread_path};{total_path}"
+        cursor.execute(
+            """INSERT INTO modelDetails 
+               (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, modelPath,
+                weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
+                weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, request.modelName, datetime.now(ZoneInfo("America/New_York")).isoformat(), model_seed, 
+             request.bettingStyle, request.tenDigit, combined_paths,
+             request.weights['weightGenOff'], request.weights['weightGenDef'], 
+             request.weights['weightPace'], request.weights['weightThrees'], 
+             request.weights['weightFts'], request.weights['weightPerDef'], 
+             request.weights['weightIntDef'], request.weights['weightBoards'], 
+             request.weights['weightPlaymaking'], request.weights['weightIntangibles'])
+        )
+        
+        cursor.execute("UPDATE modelNames SET userId = ? WHERE modelName = ?", (user_id, request.modelName))
+        
+        for rejected_name in request.rejectedNames:
+            cursor.execute(
+                "UPDATE modelNames SET timesRejected = timesRejected + 1 WHERE modelName = ?", 
+                (rejected_name,)
+            )
+        
+        conn.commit()
+        conn.close()
+        print("Model created successfully")
+        
+        return {"message": "Model created successfully", "modelSeed": model_seed}
+        
+    except HTTPException:
+        if 'conn' in locals():
+            conn.close()
+        raise
+    except Exception as e:
+        print(f"Error creating model: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        if 'conn' in locals():
+            conn.close()
+        raise HTTPException(status_code=500, detail=f"Error creating model: {str(e)}")

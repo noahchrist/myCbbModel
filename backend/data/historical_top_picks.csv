@@ -1,0 +1,180 @@
+date,gameId,pick,avgEdge,modelCount,totalModels,price,result,homeTeam,awayTeam
+2025-12-02,2184f6ee6879b6e33c232a7a70291552,Under 136.5,7.2955315854342615,2,2,-110,w,Michigan St Spartans,Iowa Hawkeyes
+2025-12-02,ad806629404cc679f4a5e78b16a498db,Over 151.5,6.0486910868463895,2,2,-116,w,George Mason Patriots,Cornell Big Red
+2025-12-02,034b7fb85991e4656164ef3495549139,Under 127.5,4.954809087899626,2,2,-106,l,North Texas Mean Green,Houston Christian Huskies
+2025-12-03,d582a2e720b74fcb38757429e6073353,Over 152.5,7.6631691367071175,7,7,-118,w,Denver Pioneers,Eastern Washington Eagles
+2025-12-03,08fb02e11b33c636ddf2d6472b6def85,Over 150.5,6.766366561438133,7,7,-106,w,Florida Int'l Golden Panthers,Florida Gulf Coast Eagles
+2025-12-03,3f5f16341044128dca4e1feb82152cd4,Under 145.5,6.396078238551951,7,7,-105,l,Santa Clara Broncos,Utah Tech Trailblazers
+2025-12-03,aa622fd726cfcdcfb2e2b76f17f3aa4e,Under 148.5,3.8998394923921467,5,7,-116,l,Montana St Bobcats,St. Thomas (MN) Tommies
+2025-12-03,652123ecbdcc695b467388b35c315e14,Under 139.5,3.5769945529469362,4,7,-116,w,Wofford Terriers,Presbyterian Blue Hose
+2025-12-04,a64b452972ebb31845d4843f67702904,Under 142.5,3.0906248975880666,5,6,-110,w,UC Irvine Anteaters,UC Riverside Highlanders
+2025-12-05,a98488e34490a4f1596ffedce6521b50,Under 135.5,7.258660516522654,17,17,-118,w,Marist Red Foxes,Mt. St. Mary's Mountaineers
+2025-12-05,dcb6314931a4cefc8832845c9b743eeb,Kentucky Wildcats +5.5,6.101246279791317,17,17,-120,l,Kentucky Wildcats,Gonzaga Bulldogs
+2025-12-05,8fdb07e2fc58b1f82171ed75556432bb,Under 133.5,3.50373786173761,12,17,-114,w,Saint Peter's Peacocks,Canisius Golden Griffins
+2025-12-05,b810dee5646dd43c4e09cbd7f1db3877,Under 140.5,3.3443719219252177,13,17,-110,l,UConn Huskies,East Texas A&M Lions
+2025-12-06,8cd6c01c62e09b38dbb44363fd654deb,La Salle Explorers +1.5,5.793589467023651,16,17,-118,w,La Salle Explorers,Drexel Dragons
+2025-12-06,171e7f05428e0cf221fcdd6140756e16,Under 138.5,5.110923574661215,14,17,-108,l,Fordham Rams,Holy Cross Crusaders
+2025-12-06,ba96e32c7853112d5a0070e1da3d692f,Over 169.5,4.106106069941075,11,17,-114,w,GW Revolutionaries,William & Mary Tribe
+2025-12-06,817e74a301dd2093b48125e87f588e24,Over 148.5,3.428579537172443,10,17,-112,w,Eastern Washington Eagles,UMKC Kangaroos
+2025-12-07,7ae17d118e5058e33feba9ade5317409,Over 161.5,5.929984713554242,17,17,-115,l,Stanford Cardinal,UNLV Rebels
+2025-12-07,ad17cf2a579b02ff9c5823d944a0c963,Under 143.5,5.312380302798401,17,17,-110,l,Lipscomb Bisons,Alabama A&M Bulldogs
+2025-12-08,b9e1fcdb9cb4b3338870c228adbd02b3,Southern Jaguars +21.5,4.359720149035638,13,13,-102,l,Texas Longhorns,Southern Jaguars
+2025-12-08,e376767087aa37a69853cab09dfd8759,New Orleans Privateers +1.5,3.0631256415699903,10,13,-118,w,New Orleans Privateers,Incarnate Word Cardinals
+2025-12-09,10afc633d6ca9f9b0c7682c25200fa3b,North Carolina Central Eagles +43.5,8.909975353581412,17,17,-110,w,Kentucky Wildcats,North Carolina Central Eagles
+2025-12-09,820b27b277361d42d40dc79d59b6e147,Under 134.5,6.673356057407388,17,17,-110,l,Virginia Cavaliers,Maryland-Eastern Shore Hawks
+2025-12-09,ccdd72400ba94036a16db9caf698000c,Over 146.5,5.059500524160415,16,17,-115,l,North Carolina A&T Aggies,Howard Bison
+2025-12-10,909b7cd4cb3bfb33267f1459d822de20,Jackson St Tigers +40.5,6.70630395345461,17,18,-112,l,Houston Cougars,Jackson St Tigers
+2025-12-10,97b9bb44d4f73a62901fb522c90d1bbb,Over 155.5,5.598134252462797,17,18,-115,l,Nebraska Cornhuskers,Wisconsin Badgers
+2025-12-10,1cdf59bddf203a746c2f03cd6b307596,Under 142.5,5.417875587132624,16,18,-110,w,Purdue Boilermakers,Minnesota Golden Gophers
+2025-12-10,f67cabd322f54073f06ef8066e8b6577,Under 148.5,4.467248329227626,15,18,-110,l,Baylor Bears,Norfolk St Spartans
+2025-12-10,f67cabd322f54073f06ef8066e8b6577,Norfolk St Spartans +26.5,3.649934482575882,12,18,-110,l,Baylor Bears,Norfolk St Spartans
+2025-12-12,fce0128d3adafdf0d2f3229cb20aad9c,UMBC Retrievers -6.5,3.2471907701999796,7,7,-110,l,UMBC Retrievers,Army Knights
+2025-12-13,dbfde798f14a65e609dc6cd16276d48f,Under 126.5,7.494139240907804,19,19,-114,w,Louisiana Tech Bulldogs,Louisiana Ragin' Cajuns
+2025-12-13,7dbb0eb51f566a82ad3bd4bcfe7885ff,Over 147.5,7.2107535843001145,19,19,-114,w,Delaware Blue Hens,CSU Northridge Matadors
+2025-12-13,5564c6f862db4b590de3a593a3d9d660,Arizona St Sun Devils +2.5,4.18882680855976,14,19,-110,w,Arizona St Sun Devils,Santa Clara Broncos
+2025-12-14,4dd427b86083a98b006c2a7c3ce3be3c,Under 141.5,5.944408548728352,19,19,-110,w,Charleston Cougars,Charlotte 49ers
+2025-12-14,b1405e29637bfbae282494b5063795f5,Under 138.5,5.322140786702787,19,19,-115,w,Virginia Tech Hokies,Maryland-Eastern Shore Hawks
+2025-12-14,9b2ff412ce80fb14a43b92099ef148b9,Over 152.5,3.6863021725406946,15,19,-106,w,Radford Highlanders,Coppin St Eagles
+2025-12-15,e863fcfdc732b0021f9d03628591bae2,Over 153.5,4.559397161277129,16,16,-110,l,Gardner-Webb Bulldogs,Wofford Terriers
+2025-12-16,a39013b58b9ad40a6e39a549a23431dd,Under 134.5,7.893779614694246,19,19,-105,w,Kansas Jayhawks,Towson Tigers
+2025-12-16,f13ec713cae82d56e66058a508472cad,Under 174.5,7.781658742573027,19,19,-110,l,Arkansas Razorbacks,Queens University Royals
+2025-12-16,c339b984660a44726b7cdd7f8d4c8bb4,Lipscomb Bisons +33.5,7.712098516080339,19,19,-110,w,Duke Blue Devils,Lipscomb Bisons
+2025-12-16,a04a3dd732394a25a81a4d6f70e2034f,Under 138.5,4.535106214863217,15,19,-110,l,Georgia Tech Yellow Jackets,Marist Red Foxes
+2025-12-17,7b98a7ffd33b02fe5be772f5633e1a8f,San Francisco Dons -12.5,6.2612182650520944,19,19,-120,w,San Francisco Dons,Loyola (Chi) Ramblers
+2025-12-17,e7ef253eba7a568276738c0137852649,Alabama St Hornets +24.5,5.683388609210208,17,19,-118,l,Cincinnati Bearcats,Alabama St Hornets
+2025-12-18,9fdce01ea2542ae1842e48afc0cbe2c1,Western Carolina Catamounts +34.5,8.409837414730081,19,19,-108,w,Georgia Bulldogs,Western Carolina Catamounts
+2025-12-18,9a394985f7dc32c6fe285c5ef0f00cb3,Norfolk St Spartans +1.5,8.022234761595888,19,19,-120,l,Norfolk St Spartans,Grambling St Tigers
+2025-12-18,718c0de7abeb97a18143f14cc0c66431,Under 135.5,6.351960456722662,19,19,-112,l,Eastern Illinois Panthers,SIU-Edwardsville Cougars
+2025-12-19,7d33e189dd059c17062677f569c6ab08,Miss Valley St Delta Devils +41.5,9.903065850175368,19,19,-110,l,Florida St Seminoles,Miss Valley St Delta Devils
+2025-12-19,89d79a60a26de4f88adc631c748262bc,Alcorn St Braves +35.5,6.223099681557712,18,19,-104,l,Baylor Bears,Alcorn St Braves
+2025-12-19,5e29a9362a797a0c318215e3c5fa9d72,Grambling St Tigers +2.5,3.829645731838749,16,19,-112,w,Grambling St Tigers,Hampton Pirates
+2025-12-19,e6ca367564dcc26341704f231ff5046d,Washington Huskies -7.5,3.273464984295942,14,19,-110,l,Washington Huskies,Seattle Redhawks
+2025-12-20,d87d380d79966e01509d3f58a645e445,Over 154.5,7.080001675375061,19,19,-115,l,Colorado Buffaloes,Stanford Cardinal
+2025-12-20,3a88e475fd452924d4313b24de246aa9,Under 138.5,6.0636408067911285,19,19,-105,w,Texas State Bobcats,South Alabama Jaguars
+2025-12-20,8eec569dd84b7bcbee37bed5cee674c8,Under 139.5,5.769602373717556,17,19,-110,l,Mercyhurst Lakers,Binghamton Bearcats
+2025-12-20,9b42f54285bbe4c22d0ae9f2fcd90219,Kentucky Wildcats +2.5,5.163304688098144,18,19,-102,w,Kentucky Wildcats,St. John's Red Storm
+2025-12-21,29cd71e395aca087fefde4739c7196ff,Under 133.5,7.5573660836484295,19,19,-110,l,UTEP Miners,Norfolk St Spartans
+2025-12-21,3b02767ce3e24e2985234f1b53daf779,Under 152.5,5.775838550843984,17,19,-105,w,Michigan Wolverines,La Salle Explorers
+2025-12-21,d9319fb9d659a5de282e3dbbc1df3020,Under 144.5,4.676538637995496,15,19,-110,l,North Dakota St Bison,UC Irvine Anteaters
+2025-12-21,5e68ab1dd78dc7326bf975ba91715b09,Over 145.5,3.425764622771966,11,19,-115,l,NC State Wolfpack,Ole Miss Rebels
+2025-12-22,76048ff18d8a90932aca064eadd6e14b,Under 148.5,11.400136027310532,19,19,-112,l,Creighton Bluejays,Utah Tech Trailblazers
+2025-12-22,cf683f2c132f21102ad71779fc73ed69,Under 131.5,9.094685903657137,19,19,-110,w,Saint Mary's Gaels,Northern Iowa Panthers
+2025-12-22,c0553b047c8007b84b1efb474443c794,Jacksonville Dolphins +24.5,7.540309908412422,19,19,-110,w,Florida St Seminoles,Jacksonville Dolphins
+2025-12-23,bec5087afc4f9f530c8077fd667cae34,Bellarmine Knights +36.5,9.318378328570525,19,19,-110,w,Kentucky Wildcats,Bellarmine Knights
+2025-12-23,38cb4c516c7ca42b1716ad79bcbbe425,Under 150.5,7.086406326081277,19,19,-110,w,Loyola Marymount Lions,Morgan St Bears
+2025-12-23,5873e473fcc36c25bce05211c00867b6,Under 151.5,6.1500823396470485,19,19,-105,l,UCLA Bruins,UC Riverside Highlanders
+2025-12-23,bec5087afc4f9f530c8077fd667cae34,Under 154.5,5.617260408265231,19,19,-110,l,Kentucky Wildcats,Bellarmine Knights
+2025-12-23,25bbe2eba940f02cbbc826e1854aafe1,Grambling St Tigers +27.5,4.314787249617943,15,19,-110,w,Ohio State Buckeyes,Grambling St Tigers
+2025-12-28,5be2d347fd790ad11d2d37fab01c0a3d,Under 128.5,4.9328502891021095,17,18,-116,w,Louisiana Ragin' Cajuns,Norfolk St Spartans
+2025-12-28,360327f55ff0095c4dacd925396a8225,Over 145.5,4.797682058217799,17,18,-115,w,Florida Int'l Golden Panthers,Liberty Flames
+2025-12-28,6a58686ae0722f51e0e1d033a4f13b84,Under 152.5,4.760799678891146,17,18,-110,l,Oregon St Beavers,Santa Clara Broncos
+2025-12-28,aea2547b8ad0bbf4a9b0caeaa228bcbe,Under 165.5,3.734052163890409,14,18,-114,w,Texas Tech Red Raiders,Winthrop Eagles
+2025-12-28,c45a2c0c069ab2f403ec0975e2d87c0b,UL Monroe Warhawks +33.5,3.0258279904507015,12,18,-104,w,Kansas St Wildcats,UL Monroe Warhawks
+2025-12-29,56134a47e7ba1396f9235e894dcde240,Jackson St Tigers +32.5,7.822897453516926,19,19,-110,l,TCU Horned Frogs,Jackson St Tigers
+2025-12-29,01a77567d3f5e9cd1c8db18050c0465d,Under 128.5,7.607265798519646,18,19,-112,l,Louisiana Tech Bulldogs,UTEP Miners
+2025-12-29,255eb30176afad41c57333ff20bb4eef,Under 127.5,6.072508071105585,16,19,-110,w,Northern Iowa Panthers,Valparaiso Beacons
+2025-12-29,1ca5e6b2120ffd5451b12f3644d00470,Over 176.5,5.967814993494543,15,19,-110,w,Cleveland St Vikings,IUPUI Jaguars
+2025-12-29,48da62192191e85c9ec85f036c8aa697,LIU Sharks +29.5,4.023832615276057,11,19,-102,w,Georgia Bulldogs,LIU Sharks
+2025-12-30,973872d950f9c3c180a50154a668a251,South Carolina St Bulldogs +45.5,5.9546585906880996,17,19,-105,l,Tennessee Volunteers,South Carolina St Bulldogs
+2025-12-30,f6fd27e3a3eaaeb7e157848a4eaa4b1e,Under 162.5,4.729650371554774,17,19,-110,l,San Diego Toreros,Gonzaga Bulldogs
+2025-12-30,b063602c0775740442ea9993d49c5a59,Under 137.5,3.8858766047823066,16,19,-110,l,Loyola Marymount Lions,Pacific Tigers
+2025-12-31,7f980827bf4a4620a82711af8a5c34f8,Under 135.5,7.329079747027125,19,19,-114,w,Hampton Pirates,Towson Tigers
+2025-12-31,7a0f17dc0b1df9c0ae4e6948a34c0687,Rhode Island Rams -9.5,6.964001801106415,19,19,-110,l,Rhode Island Rams,Loyola (Chi) Ramblers
+2025-12-31,ff30efc1e4cdb4f1a30e7b1c80c91d49,Under 127.5,6.211385835587408,19,19,-105,w,Louisiana Ragin' Cajuns,South Alabama Jaguars
+2025-12-31,f5f49ac42f8970699770a9b0c8220d67,Under 137.5,4.745407212560499,16,19,-110,l,Old Dominion Monarchs,Appalachian St Mountaineers
+2026-01-01,e343557fd64448ffbb6e8f34c27af1ae,Under 132.5,7.526616912716942,19,19,-110,l,Northern Iowa Panthers,Indiana St Sycamores
+2026-01-01,67060e3b509cc99d0d3a1d62a7dcbd71,Under 137.5,5.297838130786492,18,19,-112,w,Tenn-Martin Skyhawks,Western Illinois Leathernecks
+2026-01-01,438f3f15505bba57b87aec263aa7f7aa,Under 137.5,4.832328919916069,18,19,-110,l,Abilene Christian Wildcats,Utah Tech Trailblazers
+2026-01-01,e42a5a463e04cbc1717616f3f97b7a26,Under 162.5,3.243175576191818,13,19,-110,l,Austin Peay Governors,North Florida Ospreys
+2026-01-02,9247929250cb0448b2d55ad991ca1149,Under 134.5,8.832384661497178,19,19,-110,l,Middle Tennessee Blue Raiders,Louisiana Tech Bulldogs
+2026-01-02,521e8f2047921093ee99bd51c4f81fc9,Under 131.5,5.195204167058176,18,19,-112,w,Saint Peter's Peacocks,Marist Red Foxes
+2026-01-02,0c8d5b3014d11e052f75b43aaff85dfe,Under 131.5,5.060991519088112,18,19,-114,w,Delaware Blue Hens,Jacksonville St Gamecocks
+2026-01-02,d8ed86941172d0d5698fe66be951fae8,Over 153.5,3.6783489294040193,14,19,-110,w,Liberty Flames,Kennesaw St Owls
+2026-01-03,7a3fa82dbe4c0e02ce67aca669cb8816,Under 136.5,7.653886962688222,19,19,-110,w,Towson Tigers,Monmouth Hawks
+2026-01-03,4133d921878cdad1cb8b60553f1623af,Under 145.5,7.627594683744594,19,19,-110,w,Georgia Tech Yellow Jackets,Boston College Eagles
+2026-01-03,fb26d367dc4601d16b2c23008257f845,Under 142.5,7.220940746888006,19,19,-116,w,North Carolina Central Eagles,Norfolk St Spartans
+2026-01-03,6fbbecc1c8e5b9f42fa1cfc5608dec8f,Under 141.5,4.163650929244142,12,19,-112,w,Maryland-Eastern Shore Hawks,Morgan St Bears
+2026-01-03,0b68b873bec1fa5792eae3bdc8ccef0e,Under 134.5,3.3307100695516523,10,19,-116,w,Tenn-Martin Skyhawks,Eastern Illinois Panthers
+2026-01-04,ddcffe7ce9532d6b12da6963c34a98cf,Under 134.5,6.741696449884722,19,19,-112,l,Rider Broncs,Siena Saints
+2026-01-04,7967e4bf8a69c405dae2c19fafad39da,Under 128.5,6.460482475392316,19,19,-105,w,Evansville Purple Aces,Northern Iowa Panthers
+2026-01-04,848999e09117b96aade9deb7d95a420b,Under 154.5,5.986269458382503,19,19,-110,w,Gonzaga Bulldogs,Loyola Marymount Lions
+2026-01-04,b6bfc643d7bd18f239377411a34d2596,Under 140.5,4.48806287395199,16,19,-110,l,Saint Mary's Gaels,Seattle Redhawks
+2026-01-05,95c4fa67fab50d74ee59ff1b20831e1f,Under 151.5,4.033119305019108,14,17,-115,w,Michigan St Spartans,USC Trojans
+2026-01-06,009176da27d8c938daab9aa29cde4246,Eastern Michigan Eagles +1.5,4.982910576826551,19,19,-118,w,Ball State Cardinals,Eastern Michigan Eagles
+2026-01-06,02592130e7bb76fd1be97581d506e878,UCF Knights +4.5,3.747019941511541,16,19,-115,l,Oklahoma St Cowboys,UCF Knights
+2026-01-06,d684744c65b56baf1ea90a2add7104cc,Over 141.5,3.6311600330541,15,19,-110,l,Nevada Wolf Pack,San Diego St Aztecs
+2026-01-07,b972e235bf7fd2a1e280f865c5923249,Under 136.5,7.291056512491794,19,19,-105,l,Northern Iowa Panthers,Belmont Bruins
+2026-01-07,f2e3ba623b386fdc5fe81d0fb1096a5c,Over 155.5,5.1526938086059015,17,19,-114,l,Baylor Bears,Iowa State Cyclones
+2026-01-07,2d1bdba1559c676b7eeba8b752531b4f,Davidson Wildcats -1.5,4.479266497553477,18,19,-110,w,Loyola (Chi) Ramblers,Davidson Wildcats
+2026-01-07,6ea47064a90b7a5d39e5f0508f0f4ea8,Under 151.5,4.307259343885564,16,19,-105,l,Purdue Boilermakers,Washington Huskies
+2026-01-08,a4890ef4db65c08a063c0c648bff7d24,Under 140.5,6.917890501909319,19,19,-106,w,Georgia St Panthers,Appalachian St Mountaineers
+2026-01-08,55b9c478ce65e662ff4fcfbf2ba7a09a,Under 142.5,6.452739549042825,19,19,-112,l,Cal Baptist Lancers,Utah Tech Trailblazers
+2026-01-08,e2da6449eb5375accf8809ead2c1c267,Under 133.5,6.035769847741556,19,19,-105,l,Towson Tigers,Hofstra Pride
+2026-01-08,658de22d653d6ae005a9660a5578a5dc,Under 133.5,4.30008013229248,15,19,-110,w,Louisiana Tech Bulldogs,Liberty Flames
+2026-01-09,bea7ffd2523af60d81a618055ee89706,Over 161.5,5.9374374115085145,19,19,-110,l,Green Bay Phoenix,IUPUI Jaguars
+2026-01-09,e20b70c1aaf0e41f470a32dc1f961120,USC Trojans +4.5,5.913267237147673,19,19,-114,w,Minnesota Golden Gophers,USC Trojans
+2026-01-09,a2c3fb169a1377ae753636402704cb50,Iona Gaels -10.5,3.5275962692402345,15,19,-114,w,Iona Gaels,Niagara Purple Eagles
+2026-01-10,7cf283aa7b70769c98e48a527328fa0b,GW Revolutionaries -13.5,6.439457314235888,19,19,-120,w,GW Revolutionaries,Loyola (Chi) Ramblers
+2026-01-10,ca016965c376ce33183ba5b82d768e3d,Over 148.5,4.8516373503218215,16,19,-118,l,LIU Sharks,St. Francis (PA) Red Flash
+2026-01-10,38cc0306e16ca11acf0cc6fd8ae7bd72,Under 129.5,4.761730211145139,16,19,-110,l,Bradley Braves,Northern Iowa Panthers
+2026-01-10,62005e2024a5dbe068b14a2b413f2dd6,Under 123.5,4.753990656556603,15,19,-106,l,Louisiana Tech Bulldogs,Delaware Blue Hens
+2026-01-10,857440c249cd1b7b4121f2751cdbd732,Under 156.5,3.6873284813526097,13,19,-110,l,Creighton Bluejays,St. John's Red Storm
+2026-01-11,7a82cdf1100951aeaa2277bc1f3ae336,Over 165.5,8.953895864336827,19,19,-115,w,Milwaukee Panthers,IUPUI Jaguars
+2026-01-11,f9d4822070e4cb5c112f96ab1465c53e,Under 130.5,5.305437458524455,19,19,-105,w,Rider Broncs,Marist Red Foxes
+2026-01-12,ed20af7a6f6ec01bf5eb397e0fe2236a,Over 165.5,7.0594232708709495,19,19,-115,l,Prairie View Panthers,Arkansas-Pine Bluff Golden Lions
+2026-01-12,cf937539dde27cc8f78507a763be9c86,Under 131.5,6.611728925387001,19,19,-110,l,Norfolk St Spartans,Maryland-Eastern Shore Hawks
+2026-01-12,f54426840885ce21a097f007d2eb4908,Bethune-Cookman Wildcats +1.5,6.0903696247815535,19,19,-110,l,Bethune-Cookman Wildcats,Southern Jaguars
+2026-01-12,d6447cf7e2c4642536bd5b975fe1621a,Over 143.5,4.2499493469871235,14,19,-110,w,Coppin St Eagles,South Carolina St Bulldogs
+2026-01-12,da8a4b3beb43be8e19c36a4b5181f48f,Over 151.5,3.56769537279516,13,19,-115,l,Alabama St Hornets,Alcorn St Braves
+2026-01-13,5ecd1f93108c0fa66e243fa4e80a8b51,Under 134.5,6.953076957132924,19,19,-110,w,Clemson Tigers,Boston College Eagles
+2026-01-13,ee3c7d1171d624ff8aee41d893c86647,Under 127.5,6.810499764567134,19,19,-110,l,Northern Iowa Panthers,UIC Flames
+2026-01-13,102848aca43e9a1d654589791f0ed38e,Under 128.5,6.567479718278691,19,19,-110,w,Houston Cougars,West Virginia Mountaineers
+2026-01-13,30efd44519a9e4fccb10b0d57b936cf1,Under 132.5,6.239489817773401,19,19,-114,w,Eastern Illinois Panthers,Western Illinois Leathernecks
+2026-01-14,55d886489941b9b8cbe7c53524042fe9,Under 132.5,8.543373447498618,19,19,-112,w,Louisiana Tech Bulldogs,Middle Tennessee Blue Raiders
+2026-01-14,25d806e7a97e71d5153281eb5b37f940,Under 147.5,7.07384058127982,19,19,-110,l,Indiana St Sycamores,Illinois St Redbirds
+2026-01-14,3f52d7cedd94ea692664a761b62caa57,Over 154.5,4.634287020047907,14,19,-115,w,Denver Pioneers,Oral Roberts Golden Eagles
+2026-01-14,5d90bdae662d43e22a8cb42ce68d0112,Charleston Southern Buccaneers -2.5,4.154592818570979,13,19,-108,l,Charleston Southern Buccaneers,South Carolina Upstate Spartans
+2026-01-14,e08e023be9d9c88168f9fff798a46300,Under 129.5,3.6287365337070523,10,19,-112,w,Canisius Golden Griffins,Niagara Purple Eagles
+2026-01-15,883ec2ac013d3c064a1728d8d8a35021,Over 157.5,9.537024882235784,19,19,-110,w,IUPUI Jaguars,Robert Morris Colonials
+2026-01-15,3d529baf565fc02ba20ceb5634977c44,Albany Great Danes -2.5,8.968439147296337,19,19,-120,w,Albany Great Danes,Binghamton Bearcats
+2026-01-15,b4d6d89b6ff40dbd2e3be8e7f9d31490,Under 141.5,7.799046963490619,19,19,-110,w,Utah Tech Trailblazers,UT-Arlington Mavericks
+2026-01-15,d0627ebaa93dd7e92ba40e34b5c0d613,Under 141.5,5.510015934344122,18,19,-110,w,Towson Tigers,Charleston Cougars
+2026-01-15,7c821ffba719289731811c934d464937,UMass Lowell River Hawks -4.5,3.455582423267604,12,19,-120,l,UMass Lowell River Hawks,NJIT Highlanders
+2026-01-16,1a9c134ca3f6c3932a88364fd62e7d9e,Under 147.5,4.72128302077493,17,17,-105,w,Ball State Cardinals,Ohio Bobcats
+2026-01-17,a8e0fb85907a13e294fa4997dad1a88e,Mercyhurst Lakers +5.5,12.524005548110894,19,19,-110,w,Mercyhurst Lakers,Stonehill Skyhawks
+2026-01-17,9ea8d4f6a71bbdf9c9f4ea01312c3761,Under 130.5,10.861091678817264,19,19,-110,w,Valparaiso Beacons,Northern Iowa Panthers
+2026-01-17,854f821d307e3e594121bef404417257,Over 147.5,10.685062150065624,19,19,-112,l,Arkansas-Pine Bluff Golden Lions,Florida A&M Rattlers
+2026-01-17,f86a4e1db2c06294dccffc5656343695,Over 169.5,7.335642342238972,17,19,-108,l,IUPUI Jaguars,Detroit Mercy Titans
+2026-01-18,95993fd246611e40ddaac95a35c494d1,Under 134.5,6.171972245563478,19,19,-106,w,Tulane Green Wave,North Texas Mean Green
+2026-01-19,3fbbbd878e1ecf2ed335b50ae41bce4b,Under 135.5,9.412430413987295,19,19,-110,w,Marist Red Foxes,Merrimack Warriors
+2026-01-19,6843f58e34e783cc84738dfff2e7b199,Under 125.5,6.525904581422525,19,19,-106,w,Towson Tigers,Drexel Dragons
+2026-01-19,e92de282f684788a18628030ef38df38,Stephen F. Austin Lumberjacks +1.5,5.746510628342515,19,19,-120,w,Nicholls St Colonels,Stephen F. Austin Lumberjacks
+2026-01-19,6c293e21c17a9455b12ff1b2d2ffa9b6,Over 139.5,3.976036544914989,14,19,-115,l,Fairleigh Dickinson Knights,Wagner Seahawks
+2026-01-20,4ed4cf071cfe7da2c15ecc7e1d617c9a,Under 142.5,5.788800090764788,19,19,-110,w,Central Michigan Chippewas,Ball State Cardinals
+2026-01-20,372ed690d06f7af3c39d42964167147a,Over 164.5,4.005211224891214,16,19,-115,l,Missouri Tigers,Georgia Bulldogs
+2026-01-21,af0fda14f36b757949e894731c7e7b12,Under 131.5,9.405635856077511,19,19,-110,w,Illinois St Redbirds,Northern Iowa Panthers
+2026-01-21,515090724e6b67ea6bba1d4a94c18b2a,Over 177.5,8.115608223002283,19,19,-112,w,Oakland Golden Grizzlies,IUPUI Jaguars
+2026-01-21,3ba57e53fb5c03e47c3d24a249d58d90,Under 142.5,7.162319732347013,19,19,-110,w,Cal Baptist Lancers,Utah Tech Trailblazers
+2026-01-21,424e5ce54851abb80aadb122eebf11ae,Under 136.5,4.891011723191437,16,19,-110,w,Boston College Eagles,Pittsburgh Panthers
+2026-01-21,140b50a5f41d3418bc2d3520915119eb,Under 148.5,3.8739248146971894,13,19,-108,l,Presbyterian Blue Hose,Charleston Southern Buccaneers
+2026-01-22,e1ca05e55815bb75c8e478ec6f381b29,Under 125.5,7.356959410292188,19,19,-110,l,Appalachian St Mountaineers,Louisiana Ragin' Cajuns
+2026-01-22,3c4b64b2faacaa6557a37ee2028d1c1b,Over 144.5,6.321865334039082,19,19,-115,w,UMass Lowell River Hawks,Vermont Catamounts
+2026-01-23,ff06d8533637235b86456bfbf56500ac,Under 122.5,6.911449892963919,19,19,-110,w,New Haven Chargers,Mercyhurst Lakers
+2026-01-23,e211314a2a4ec342ae8d16b529483986,Under 136.5,6.487634319689522,19,19,-115,w,North Texas Mean Green,East Carolina Pirates
+2026-01-23,57a5128dccb3d1d41bb7c7dccd1fa19c,Buffalo Bulls +2.5,4.751908825760965,17,19,-120,w,Buffalo Bulls,Massachusetts Minutemen
+2026-01-24,8d6977732a34a2ddd0564e91e195b7e1,Under 134.5,7.020904614750063,19,19,-112,w,Princeton Tigers,Brown Bears
+2026-01-24,13290b12ddf9d43cd49426a751105517,Under 135.5,6.891588678327145,19,19,-110,w,Notre Dame Fighting Irish,Boston College Eagles
+2026-01-24,4b39e3394d32bcc329baedc9933ce0ff,Over 149.5,5.7743460890129725,18,19,-110,w,UNLV Rebels,San Diego St Aztecs
+2026-01-24,f4d4fabe9ffeadc2c9fdb3220bfa17c4,Under 137.5,5.0373913505516725,16,19,-112,l,Hampton Pirates,UNC Wilmington Seahawks
+2026-01-24,18c6bdc5db5320d5d04771ce162432c3,Under 136.5,3.07714070344723,10,19,-110,l,UConn Huskies,Villanova Wildcats
+2026-01-26,8c9ff307269aa99e3af867b6173f5693,Over 141.5,5.082411748282016,18,18,-115,w,Fairleigh Dickinson Knights,Le Moyne Dolphins
+2026-01-27,1478cc8b93428a157ecdbb8a1910e40c,Michigan St Spartans -14.5,4.101285511665283,16,18,-120,l,Rutgers Scarlet Knights,Michigan St Spartans
+2026-01-28,c23c391402e5685b92a3fa2a6ae03373,Under 128.5,7.089541192684275,21,21,-110,w,UTEP Miners,Louisiana Tech Bulldogs
+2026-01-28,314b1f44baca242e136fbbf90f6e7a1d,Under 130.5,6.922448231357778,21,21,-110,w,Southern Illinois Salukis,Northern Iowa Panthers
+2026-01-28,cd97af3c1d1f3b80b1b99715114ca5ce,Over 145.5,4.612719020329562,19,21,-110,w,Miami Hurricanes,Stanford Cardinal
+2026-01-28,ed3ed66d114052a1ad8e193bb0d0b446,Over 139.5,3.8883780668902963,16,21,-115,w,Southern Jaguars,Miss Valley St Delta Devils
+2026-01-28,ffe289b2f8b1fb6ee9f5ca932fa33e73,Sam Houston St Bearkats +1.5,3.8784292477326736,18,21,-108,w,Missouri St Bears,Sam Houston St Bearkats
+2026-01-29,1c467fa13c290eff0931ae7a842b7acd,Under 133.5,8.814561596996247,21,21,-110,l,Towson Tigers,UNC Wilmington Seahawks
+2026-01-29,704f779cd8bfb5ab1ea51731fa5504b4,Over 152.5,6.7313798741707584,21,21,-110,l,South Dakota Coyotes,Oral Roberts Golden Eagles
+2026-01-29,ff0ede384cb979aeb3e8b7f86d8258c1,Under 139.5,4.188583886943674,19,21,-105,l,UC Irvine Anteaters,Hawai'i Rainbow Warriors
+2026-01-29,0b927b8d1b2eb3bcc6c023e0879c8ff9,Over 152.5,3.7336801529204005,17,21,-110,w,Iowa State Cyclones,Colorado Buffaloes
