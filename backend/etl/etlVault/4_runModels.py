@@ -120,7 +120,7 @@ try:
             cursor.execute("""
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
-            FROM gamesMM 
+            FROM games2026 
             WHERE game_id = ? AND is_completed = 0
             """, (game_id,))
             
@@ -179,7 +179,7 @@ try:
             cursor.execute("""
             SELECT game_id, fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                    fd_over, fd_overPrice, fd_under, fd_underPrice
-            FROM gamesMM 
+            FROM games2026 
             WHERE game_id = ? AND is_completed = 0
             """, (game_id,))
             
@@ -248,41 +248,9 @@ try:
         
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-
-        # Ensure MM tables exist
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS modelDetailsMM (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId TEXT, modelName TEXT, dateCreated DATETIME,
-            modelSeed INTEGER UNIQUE, modelPath TEXT, bettingStyle TEXT, tenDigit INTEGER,
-            weightGenOff INTEGER, weightGenDef INTEGER, weightPace INTEGER,
-            weightThrees INTEGER, weightFts INTEGER, weightPerDef INTEGER,
-            weightIntDef INTEGER, weightBoards INTEGER, weightPlaymaking INTEGER,
-            weightIntangibles INTEGER,
-            w_l_overall TEXT, unitsBetOverall REAL, unitsWonOverall REAL,
-            FOREIGN KEY (userId) REFERENCES users(id)
-        )
-        """)
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS modelPredictionsMM (
-            predictionId INTEGER PRIMARY KEY AUTOINCREMENT,
-            datePredicted DATE, modelId INTEGER, game_id TEXT, game_date DATE,
-            is_completed BOOLEAN, home_team TEXT, home_score INTEGER,
-            away_team TEXT, away_score INTEGER, pt_diff REAL,
-            fd_home_spread REAL, fd_home_spreadPrice INTEGER,
-            fd_away_spread REAL, fd_away_spreadPrice INTEGER,
-            predicted_pt_diff REAL, edge REAL, unitsBet REAL, unitsWon REAL,
-            w_l TEXT, summary TEXT, bet_type TEXT,
-            fd_over REAL, fd_overPrice INTEGER, fd_under REAL, fd_underPrice INTEGER,
-            predicted_pt_total REAL, pt_total INTEGER,
-            FOREIGN KEY (modelId) REFERENCES modelDetailsMM(id),
-            FOREIGN KEY (game_id) REFERENCES gamesMM(game_id)
-        )
-        """)
-        conn.commit()
-
+        
         # Calculate total bias based on 2026 season average vs historical average
-        cursor.execute("SELECT AVG(pt_total) FROM gamesMM WHERE is_completed = 1")
+        cursor.execute("SELECT AVG(pt_total) FROM games2026 WHERE is_completed = 1")
         current_avg_result = cursor.fetchone()
         current_avg = current_avg_result[0] if current_avg_result and current_avg_result[0] else 139.52
         historical_avg = 139.52
@@ -290,16 +258,16 @@ try:
         
         logger.info(f"Total bias calculation: (Current avg {current_avg:.2f} - Historical avg {historical_avg}) * 0.8 = {total_bias:.2f}")
         
-        # Load baseline target data from setTargetMM for today (only upcoming games)
-        logger.info(f"Loading baseline target data from setTargetMM for {today}")
+        # Load baseline target data from setTarget2026 for today (only upcoming games)
+        logger.info(f"Loading baseline target data from setTarget2026 for {today}")
         baseline_df = pd.read_sql("""
-            SELECT st.*, g.game_id FROM setTargetMM st
-            INNER JOIN gamesMM g ON st.home_kpid = g.home_kpid AND st.away_kpid = g.away_kpid AND st.game_date = g.game_date
+            SELECT st.*, g.game_id FROM setTarget2026 st
+            INNER JOIN games2026 g ON st.home_kpid = g.home_kpid AND st.away_kpid = g.away_kpid AND st.game_date = g.game_date
             WHERE st.game_date = ? AND g.is_completed = 0
         """, conn, params=(today,))
         
         if len(baseline_df) == 0:
-            logger.error(f"No games found in setTargetMM for {today}")
+            logger.error(f"No games found in setTarget2026 for {today}")
             conn.close()
             return
         logger.info(f"Loaded {len(baseline_df)} games")
@@ -309,7 +277,7 @@ try:
             SELECT id, modelName, bettingStyle, modelPath,
                    weightGenOff, weightGenDef, weightPace, weightThrees, weightFts,
                    weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles
-            FROM modelDetailsMM
+            FROM modelDetails
             WHERE modelPath IS NOT NULL
         """)
         
@@ -402,7 +370,7 @@ try:
             logger.info(f"Qualified edges (>= {min_edge}): {[round(e['edge'], 2) for e in qualified_edges]}")
             
             # Clear existing predictions for this model today
-            cursor.execute("DELETE FROM modelPredictionsMM WHERE modelId = ? AND datePredicted = ?", 
+            cursor.execute("DELETE FROM modelPredictions WHERE modelId = ? AND datePredicted = ?", 
                           (model_id, datetime.now(eastern).date().isoformat()))
             
             # Save qualified predictions
@@ -436,7 +404,7 @@ try:
                 game_date = row_with_odds['game_date']
                 
                 cursor.execute("""
-                    INSERT INTO modelPredictionsMM 
+                    INSERT INTO modelPredictions 
                     (datePredicted, modelId, game_id, game_date, is_completed, home_team, away_team,
                      fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                      fd_over, fd_overPrice, fd_under, fd_underPrice,

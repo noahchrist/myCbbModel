@@ -42,9 +42,9 @@ try:
     sqlite3.register_converter("DATETIME", lambda b: datetime.fromisoformat(b.decode()))
     sqlite3.register_converter("DATE", lambda b: datetime.fromisoformat(b.decode()).date())
     
-    # Create gamesMM table if it doesn't exist
+    # Create games2026 table if it doesn't exist
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS gamesMM (
+    CREATE TABLE IF NOT EXISTS games2026 (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         load_datetime DATETIME,
         game_id TEXT UNIQUE,
@@ -83,7 +83,7 @@ try:
     )
     """)
     conn.commit()
-    logger.info("Database table gamesMM ready")
+    logger.info("Database table games2026 ready")
     
     # Track API usage
     total_requests = 0
@@ -245,7 +245,7 @@ try:
             
             # Insert or update game
             cursor.execute("""
-                INSERT OR REPLACE INTO gamesMM (
+                INSERT OR REPLACE INTO games2026 (
                     load_datetime, game_id, commence_time, game_date,
                     home_kpid, away_kpid, home_team, away_team,
                     fd_home_hhPrice, fd_away_hhPrice, fd_home_spread, fd_home_spreadPrice,
@@ -319,7 +319,7 @@ try:
                 
                 # Update existing game with scores
                 cursor.execute("""
-                    UPDATE gamesMM 
+                    UPDATE games2026 
                     SET home_score = ?, away_score = ?, pt_diff = ?, pt_total = ?, is_completed = 1
                     WHERE game_id = ?
                 """, (home_score, away_score, pt_diff, pt_total, game_id))
@@ -338,7 +338,7 @@ try:
                     away_kpid = get_team_kpid(away_team)
                     
                     cursor.execute("""
-                        INSERT INTO gamesMM (
+                        INSERT INTO games2026 (
                             load_datetime, game_id, commence_time, game_date, is_completed,
                             home_kpid, away_kpid, home_team, away_team,
                             home_score, away_score, pt_diff, pt_total
@@ -365,13 +365,13 @@ try:
     logger.info("Starting final verification")
     
     # Get final counts
-    cursor.execute("SELECT COUNT(*) FROM gamesMM")
+    cursor.execute("SELECT COUNT(*) FROM games2026")
     total_games = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM gamesMM WHERE is_completed = 1")
+    cursor.execute("SELECT COUNT(*) FROM games2026 WHERE is_completed = 1")
     completed_games = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM gamesMM WHERE is_completed = 0")
+    cursor.execute("SELECT COUNT(*) FROM games2026 WHERE is_completed = 0")
     upcoming_games = cursor.fetchone()[0]
     
     logger.info("Pipeline complete - final summary:")

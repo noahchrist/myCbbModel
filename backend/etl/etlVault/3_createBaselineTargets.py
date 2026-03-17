@@ -33,9 +33,9 @@ try:
     today = datetime.now(eastern).strftime('%Y-%m-%d')
     logger.info(f"Creating target dataset for {today} (Eastern time)")
     
-    # Create setTargetMM table with game_id as primary key
+    # Create setTarget2026 table with game_id as primary key
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS setTargetMM (
+    CREATE TABLE IF NOT EXISTS setTarget2026 (
         game_id TEXT PRIMARY KEY,
         home_kpid INTEGER,
         away_kpid INTEGER,
@@ -99,10 +99,10 @@ try:
         game_date DATE
     )
     """)
-    logger.info("setTargetMM table ready")
+    logger.info("Created setTarget2026 table with game_id as primary key")
     
     # Check for existing games today
-    cursor.execute("SELECT COUNT(*) FROM setTargetMM WHERE game_date = ?", (today,))
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026 WHERE game_date = ?", (today,))
     result = cursor.fetchone()
     existing_count = result[0] if result else 0
     
@@ -117,7 +117,7 @@ try:
     # Get today's upcoming games with named columns
     cursor.execute("""
     SELECT game_id, commence_time, season, game_date, home_team, away_team, home_kpid, away_kpid
-    FROM gamesMM 
+    FROM games2026 
     WHERE game_date = ? AND is_completed = 0
     """, (today,))
     
@@ -133,12 +133,12 @@ try:
     for game in games:
         game_id = game['game_id']
         
-        # Check if game already exists in setTargetMM
-        cursor.execute("SELECT game_id FROM setTargetMM WHERE game_id = ?", (game_id,))
+        # Check if game already exists in setTarget2026
+        cursor.execute("SELECT game_id FROM setTarget2026 WHERE game_id = ?", (game_id,))
         existing_game = cursor.fetchone()
         
         # Check if this game is completed
-        cursor.execute("SELECT is_completed FROM gamesMM WHERE game_id = ?", (game_id,))
+        cursor.execute("SELECT is_completed FROM games2026 WHERE game_id = ?", (game_id,))
         completion_result = cursor.fetchone()
         is_completed = completion_result[0] if completion_result else 0
         
@@ -182,7 +182,7 @@ try:
             if existing_game:
                 # Update existing incomplete game record with current KenPom data
                 cursor.execute("""
-                UPDATE setTargetMM SET
+                UPDATE setTarget2026 SET
                     home_kpid = ?, away_kpid = ?, date = ?, season = ?, home_team = ?, away_team = ?,
                     home_adjOffEff = ?, home_effFgPct = ?, home_adjDefEff = ?, home_defEffFgPct = ?,
                     home_adjTempo = ?, home_threesPct = ?, home_threesRate = ?, home_ftRate = ?,
@@ -220,7 +220,7 @@ try:
             else:
                 # Insert new game record with KenPom data for upcoming game
                 cursor.execute("""
-                INSERT INTO setTargetMM (
+                INSERT INTO setTarget2026 (
                     game_id, home_kpid, away_kpid, is_home, is_neutral, date, season, home_team, home_score, away_team, away_score,
                     win_loss, pt_diff, pt_total,
                     home_adjOffEff, home_effFgPct, home_adjDefEff, home_defEffFgPct, home_adjTempo,
@@ -236,8 +236,8 @@ try:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    # Game metadata - scores/results are None for upcoming games; tournament = neutral site
-                    game_id, game['home_kpid'], game['away_kpid'], 0, 1, game['game_date'], int(game['season']), game['home_team'], None, game['away_team'], None,
+                    # Game metadata - scores/results are None for upcoming games
+                    game_id, game['home_kpid'], game['away_kpid'], 1, 0, game['game_date'], int(game['season']), game['home_team'], None, game['away_team'], None,
                     None, None, None,
                     # Home team KenPom stats using named dictionary access
                     home_stats['adjOffEff'], home_stats['effFgPct'], home_stats['adjDefEff'], home_stats['defEffFgPct'],
@@ -269,10 +269,10 @@ try:
     logger.info("Starting final verification")
     
     # Get final counts
-    cursor.execute("SELECT COUNT(*) FROM setTargetMM WHERE game_date = ?", (today,))
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026 WHERE game_date = ?", (today,))
     total_today = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM setTargetMM")
+    cursor.execute("SELECT COUNT(*) FROM setTarget2026")
     total_all = cursor.fetchone()[0]
     
     logger.info("Pipeline complete - final summary:")
@@ -280,7 +280,7 @@ try:
     logger.info(f"Records updated: {updated}")
     logger.info(f"Records inserted: {inserted}")
     logger.info(f"Total games for {today}: {total_today}")
-    logger.info(f"Total games in setTargetMM: {total_all}")
+    logger.info(f"Total games in setTarget2026: {total_all}")
     
     conn.close()
     logger.info("Create Baseline Targets pipeline finished")

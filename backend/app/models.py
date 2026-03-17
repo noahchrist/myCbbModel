@@ -45,8 +45,8 @@ async def get_user_models(user_id: str):
            SUM(p.unitsBet) as unitsBet,
            m.weightGenOff, m.weightGenDef, m.weightPace, m.weightThrees, m.weightFts,
            m.weightPerDef, m.weightIntDef, m.weightBoards, m.weightPlaymaking, m.weightIntangibles
-           FROM modelDetails m
-           LEFT JOIN modelPredictions p ON m.id = p.modelId
+           FROM modelDetailsMM m
+           LEFT JOIN modelPredictionsMM p ON m.id = p.modelId
            WHERE m.userId = ? AND m.modelPath IS NOT NULL
            GROUP BY m.id""",
         (user_id,)
@@ -102,7 +102,7 @@ async def create_model(request: ModelCreate, user_id: str):
         print(f"User role: {user_role}, is_admin: {is_admin}")
         
         if not is_admin:
-            cursor.execute("SELECT COUNT(*) FROM modelDetails WHERE userId = ? AND modelPath IS NOT NULL", (user_id,))
+            cursor.execute("SELECT COUNT(*) FROM modelDetailsMM WHERE userId = ? AND modelPath IS NOT NULL", (user_id,))
             model_count = cursor.fetchone()[0]
             print(f"Current active model count: {model_count}")
             if model_count >= 2:
@@ -112,7 +112,7 @@ async def create_model(request: ModelCreate, user_id: str):
         # Generate unique model seed (check all models, including soft-deleted ones)
         while True:
             model_seed = random.randint(100, 999)
-            cursor.execute("SELECT modelSeed FROM modelDetails WHERE modelSeed = ?", (model_seed,))
+            cursor.execute("SELECT modelSeed FROM modelDetailsMM WHERE modelSeed = ?", (model_seed,))
             if not cursor.fetchone():
                 break
         print(f"Generated model seed: {model_seed}")
@@ -158,7 +158,7 @@ async def create_model(request: ModelCreate, user_id: str):
         print("Inserting model details...")
         combined_paths = f"{spread_path};{total_path}"
         cursor.execute(
-            """INSERT INTO modelDetails 
+            """INSERT INTO modelDetailsMM 
                (userId, modelName, dateCreated, modelSeed, bettingStyle, tenDigit, modelPath,
                 weightGenOff, weightGenDef, weightPace, weightThrees, weightFts, 
                 weightPerDef, weightIntDef, weightBoards, weightPlaymaking, weightIntangibles) 
@@ -207,7 +207,7 @@ async def get_community_models():
     cursor.execute(
         """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
            m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall, m.modelPath
-           FROM modelDetails m
+           FROM modelDetailsMM m
            LEFT JOIN users u ON m.userId = u.id
            ORDER BY CASE WHEN m.unitsBetOverall > 0 THEN m.unitsWonOverall / m.unitsBetOverall ELSE 0 END DESC"""
     )
@@ -251,7 +251,7 @@ async def delete_model(model_id: int, user_id: str):
         cursor = conn.cursor()
         
         # Get model details
-        cursor.execute("SELECT modelName, modelPath FROM modelDetails WHERE id = ? AND userId = ?", (model_id, user_id))
+        cursor.execute("SELECT modelName, modelPath FROM modelDetailsMM WHERE id = ? AND userId = ?", (model_id, user_id))
         result = cursor.fetchone()
         if not result:
             conn.close()
@@ -278,9 +278,9 @@ async def delete_model(model_id: int, user_id: str):
                 print(f"Deleted model file: {combined_paths}")
         
         # Soft delete: clear modelPath but keep model record for historical accuracy
-        cursor.execute("UPDATE modelDetails SET modelPath = NULL WHERE id = ? AND userId = ?", (model_id, user_id))
+        cursor.execute("UPDATE modelDetailsMM SET modelPath = NULL WHERE id = ? AND userId = ?", (model_id, user_id))
         cursor.execute("UPDATE modelNames SET userId = NULL WHERE modelName = ? AND userId = ?", (model_name, user_id))
-        # Note: modelPredictions and modelDetails record are kept to preserve historical data
+        # Note: modelPredictionsMM and modelDetailsMM record are kept to preserve historical data
         
         conn.commit()
         conn.close()
@@ -298,8 +298,8 @@ async def get_model_history(model_id: int, user_id: str = None):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Check if model exists in modelDetails (works for both active and soft-deleted models)
-    cursor.execute("SELECT id FROM modelDetails WHERE id = ?", (model_id,))
+    # Check if model exists in modelDetailsMM (works for both active and soft-deleted models)
+    cursor.execute("SELECT id FROM modelDetailsMM WHERE id = ?", (model_id,))
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Model not found")
@@ -309,7 +309,7 @@ async def get_model_history(model_id: int, user_id: str = None):
         SELECT game_date, home_team, away_team, bet_type, predicted_pt_diff, predicted_pt_total,
                fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
                fd_over, fd_overPrice, fd_under, fd_underPrice, unitsBet, unitsWon, w_l
-        FROM modelPredictions 
+        FROM modelPredictionsMM 
         WHERE modelId = ? AND is_completed = 1
         ORDER BY game_date DESC
     """, (model_id,))
@@ -355,8 +355,8 @@ async def get_todays_top_picks(date: str):
     cursor.execute("""
         SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
                fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
-        FROM modelPredictions 
-        WHERE datePredicted = ?
+        FROM modelPredictionsMM
+        WHERE datePredicted = ? AND modelId != 999
     """, (date,))
     
     bets = []
@@ -394,7 +394,7 @@ async def get_model_daily_picks(date: str, model_id: int, user_id: str):
     cursor = conn.cursor()
     
     # Verify model ownership and that it's not soft-deleted
-    cursor.execute("SELECT id FROM modelDetails WHERE id = ? AND userId = ? AND modelPath IS NOT NULL", (model_id, user_id))
+    cursor.execute("SELECT id FROM modelDetailsMM WHERE id = ? AND userId = ? AND modelPath IS NOT NULL", (model_id, user_id))
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Model not found")
@@ -402,7 +402,7 @@ async def get_model_daily_picks(date: str, model_id: int, user_id: str):
     # Get picks for the specified date
     cursor.execute("""
         SELECT summary, unitsBet, edge, home_team, away_team
-        FROM modelPredictions 
+        FROM modelPredictionsMM 
         WHERE modelId = ? AND datePredicted = ?
         ORDER BY edge DESC
         LIMIT 5
@@ -426,130 +426,28 @@ async def get_top_picks_performance():
     db_path = os.environ.get('DB_PATH')
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
-    # Get all eligible dates with completed games
+
     cursor.execute("""
-        SELECT DISTINCT game_date 
-        FROM modelPredictions 
-        WHERE is_completed = 1
-        ORDER BY game_date
+        SELECT
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END),
+            SUM(unitsWon),
+            COUNT(*)
+        FROM modelPredictionsMM WHERE modelId = 999 AND is_completed = 1
     """)
-    
-    eligible_dates = [row[0] for row in cursor.fetchall()]
-    
-    total_wins = 0
-    total_losses = 0
-    total_units_bet = 0
-    total_units_won = 0
-    
-    for date in eligible_dates:
-        # Get all predictions for this date
-        cursor.execute("""
-            SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
-                   fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice
-            FROM modelPredictions 
-            WHERE game_date = ? AND is_completed = 1
-        """, (date,))
-        
-        bets = []
-        for row in cursor.fetchall():
-            game_id, summary, edge, home_team, away_team, w_l, model_id, home_spread_price, away_spread_price, over_price, under_price = row
-            
-            # Extract pick from summary
-            pick = ""
-            if summary and "Pick:" in summary:
-                pick = summary.split("Pick:")[1].strip()
-            
-            bets.append({
-                "gameId": game_id,
-                "pick": pick,
-                "edge": edge,
-                "homeTeam": home_team,
-                "awayTeam": away_team,
-                "wl": w_l,
-                "modelId": model_id,
-                "prices": {
-                    "homeSpread": home_spread_price,
-                    "awaySpread": away_spread_price,
-                    "over": over_price,
-                    "under": under_price
-                }
-            })
-        
-        # Get unique model count for this date
-        unique_model_ids = set(bet["modelId"] for bet in bets)
-        total_model_count = len(unique_model_ids)
-        
-        if total_model_count == 0:
-            continue
-            
-        # Aggregate bets by unique pick (same logic as fetchTopPicks)
-        pick_map = {}
-        
-        for bet in bets:
-            if bet["pick"] and bet["gameId"]:
-                unique_key = f"{bet['gameId']}:{bet['pick']}:{bet['wl'] or 'pending'}"
-                
-                # Determine price based on pick type
-                price = 0
-                if 'Over' in bet["pick"] or 'Under' in bet["pick"]:
-                    price = bet["prices"]["over"] if 'Over' in bet["pick"] else bet["prices"]["under"]
-                else:
-                    # Spread bet
-                    if bet["homeTeam"] in bet["pick"]:
-                        price = bet["prices"]["homeSpread"]
-                    else:
-                        price = bet["prices"]["awaySpread"]
-                
-                if unique_key in pick_map:
-                    pick_map[unique_key]["totalEdge"] += bet["edge"]
-                    pick_map[unique_key]["modelCount"] += 1
-                else:
-                    pick_map[unique_key] = {
-                        "totalEdge": bet["edge"],
-                        "modelCount": 1,
-                        "price": price,
-                        "result": bet["wl"]
-                    }
-        
-        # Filter and sort top picks (same logic as fetchTopPicks)
-        top_picks = []
-        for key, data in pick_map.items():
-            avg_edge = data["totalEdge"] / total_model_count
-            if avg_edge >= 3.0:
-                top_picks.append({
-                    "avgEdge": avg_edge,
-                    "price": data["price"],
-                    "result": data["result"]
-                })
-        
-        # Sort by edge and take top 5
-        top_picks.sort(key=lambda x: x["avgEdge"], reverse=True)
-        top_picks = top_picks[:5]
-        
-        # Calculate performance for this date's top picks
-        for pick in top_picks:
-            total_units_bet += 1  # 1 unit per bet
-            
-            if pick["result"] == 'w':
-                total_wins += 1
-                # Calculate winning units based on price
-                if pick["price"] > 0:
-                    total_units_won += pick["price"] / 100  # +150 = 1.5 units won
-                else:
-                    total_units_won += 100 / abs(pick["price"])  # -110 = 0.91 units won
-            elif pick["result"] == 'l':
-                total_losses += 1
-                total_units_won -= 1  # Lose 1 unit
-    
-    # Calculate final stats
-    roi = (total_units_won / total_units_bet * 100) if total_units_bet > 0 else 0
-    
+    row = cursor.fetchone()
     conn.close()
-    
+
+    wins, losses, units_won, total_bets = row if row else (0, 0, 0, 0)
+    wins = wins or 0
+    losses = losses or 0
+    units_won = units_won or 0
+    total_bets = total_bets or 0
+    roi = (units_won / total_bets * 100) if total_bets > 0 else 0
+
     return {
-        "record": f"{total_wins}-{total_losses}",
-        "unitsBet": round(total_units_bet, 2),
-        "unitsWon": round(total_units_won, 2),
+        "record": f"{wins}-{losses}",
+        "unitsBet": round(float(total_bets), 2),
+        "unitsWon": round(float(units_won), 2),
         "roi": round(roi, 1)
     }

@@ -32,7 +32,7 @@ async def get_games_by_date(date: str) -> List[Dict[str, Any]]:
         fd_overPrice,
         fd_under,
         fd_underPrice
-    FROM games2026 
+    FROM gamesMM
     WHERE game_date = ?
     ORDER BY commence_time ASC
     """

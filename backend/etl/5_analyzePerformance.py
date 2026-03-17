@@ -42,8 +42,8 @@ def analyze_completed_games():
                    mp.bet_type, mp.fd_home_spread, mp.fd_home_spreadPrice, mp.fd_away_spreadPrice,
                    mp.fd_over, mp.fd_overPrice, mp.fd_underPrice, mp.unitsBet,
                    g.is_completed, g.home_score, g.away_score, g.pt_diff, g.pt_total
-            FROM modelPredictions mp
-            JOIN games2026 g ON mp.game_id = g.game_id
+            FROM modelPredictionsMM mp
+            JOIN gamesMM g ON mp.game_id = g.game_id
             WHERE mp.is_completed = 0 AND g.is_completed = 1
         """)
         
@@ -58,7 +58,7 @@ def analyze_completed_games():
             
             # Update prediction with game results
             cursor.execute("""
-                UPDATE modelPredictions 
+                UPDATE modelPredictionsMM 
                 SET is_completed = 1, home_score = ?, away_score = ?, pt_diff = ?, pt_total = ?
                 WHERE predictionId = ?
             """, (home_score, away_score, actual_pt_diff, actual_pt_total, pred_id))
@@ -109,7 +109,7 @@ def analyze_completed_games():
             
             # Update prediction with results
             cursor.execute("""
-                UPDATE modelPredictions 
+                UPDATE modelPredictionsMM 
                 SET w_l = ?, unitsWon = ?
                 WHERE predictionId = ?
             """, (w_l, units_won, pred_id))
@@ -117,7 +117,7 @@ def analyze_completed_games():
             logger.info(f"Updated prediction {pred_id}: {w_l} ({units_won:+.2f} units)")
         
         # Recalculate stats for active models only (exclude soft-deleted)
-        cursor.execute("SELECT id FROM modelDetails WHERE modelPath IS NOT NULL")
+        cursor.execute("SELECT id FROM modelDetailsMM WHERE modelPath IS NOT NULL")
         all_model_ids = [row[0] for row in cursor.fetchall()]
         
         for model_id in all_model_ids:
@@ -129,7 +129,7 @@ def analyze_completed_games():
                     SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END) as losses,
                     SUM(unitsBet) as total_units_bet,
                     SUM(unitsWon) as total_units_won
-                FROM modelPredictions 
+                FROM modelPredictionsMM 
                 WHERE modelId = ? AND is_completed = 1
             """, (model_id,))
             
@@ -138,9 +138,9 @@ def analyze_completed_games():
             
             w_l_overall = f"{wins or 0}-{losses or 0}"
             
-            # Update modelDetails with fresh calculations
+            # Update modelDetailsMM with fresh calculations
             cursor.execute("""
-                UPDATE modelDetails 
+                UPDATE modelDetailsMM 
                 SET w_l_overall = ?, unitsBetOverall = ?, unitsWonOverall = ?
                 WHERE id = ?
             """, (w_l_overall, total_units_bet or 0, total_units_won or 0, model_id))
@@ -155,13 +155,165 @@ def analyze_completed_games():
     finally:
         conn.close()
 
+def persist_community_picks_mm():
+    """Persist community picks (modelId=999) for each newly completed date in modelPredictionsMM."""
+    logger.info("Persisting community picks for MM tables")
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    try:
+        # Total active model count (excludes community picks placeholder)
+        cursor.execute("SELECT COUNT(*) FROM modelDetailsMM WHERE modelPath IS NOT NULL AND id != 999")
+        total_model_count = cursor.fetchone()[0] or 0
+
+        if total_model_count == 0:
+            logger.info("No active models in modelDetailsMM, skipping community picks")
+            return
+
+        # Dates with completed regular-model predictions
+        cursor.execute("""
+            SELECT DISTINCT game_date FROM modelPredictionsMM
+            WHERE is_completed = 1 AND modelId != 999
+            ORDER BY game_date
+        """)
+        completed_dates = [row[0] for row in cursor.fetchall()]
+        logger.info(f"Found {len(completed_dates)} completed dates to process")
+
+        new_dates_count = 0
+
+        for date in completed_dates:
+            # Idempotency check
+            cursor.execute("""
+                SELECT COUNT(*) FROM modelPredictionsMM WHERE modelId = 999 AND game_date = ?
+            """, (date,))
+            if cursor.fetchone()[0] > 0:
+                logger.info(f"Community picks already persisted for {date}, skipping")
+                continue
+
+            # Load all completed predictions for this date
+            cursor.execute("""
+                SELECT game_id, summary, edge, home_team, away_team, w_l, modelId,
+                       fd_home_spreadPrice, fd_away_spreadPrice, fd_overPrice, fd_underPrice,
+                       fd_home_spread, fd_away_spread, fd_over, fd_under,
+                       bet_type, home_score, away_score, pt_diff, pt_total
+                FROM modelPredictionsMM
+                WHERE game_date = ? AND is_completed = 1 AND modelId != 999
+            """, (date,))
+
+            bets = []
+            for row in cursor.fetchall():
+                (game_id, summary, edge, home_team, away_team, w_l, model_id,
+                 home_spread_price, away_spread_price, over_price, under_price,
+                 fd_home_spread, fd_away_spread, fd_over, fd_under,
+                 bet_type, home_score, away_score, pt_diff, pt_total) = row
+
+                pick = summary.split("Pick:")[1].strip() if summary and "Pick:" in summary else ""
+                bets.append({
+                    "gameId": game_id, "pick": pick, "edge": edge or 0,
+                    "homeTeam": home_team, "awayTeam": away_team, "wl": w_l,
+                    "betType": bet_type,
+                    "prices": {
+                        "homeSpread": home_spread_price, "awaySpread": away_spread_price,
+                        "over": over_price, "under": under_price
+                    },
+                    "fdHomeSpread": fd_home_spread, "fdAwaySpread": fd_away_spread,
+                    "fdOver": fd_over, "fdUnder": fd_under,
+                    "homeScore": home_score, "awayScore": away_score,
+                    "ptDiff": pt_diff, "ptTotal": pt_total
+                })
+
+            # Aggregate by unique pick (same logic as frontend fetchTopPicks)
+            pick_map = {}
+            row_data_map = {}
+
+            for bet in bets:
+                if not bet["pick"] or not bet["gameId"]:
+                    continue
+                unique_key = f"{bet['gameId']}:{bet['pick']}:{bet['wl'] or 'pending'}"
+
+                if 'Over' in bet["pick"] or 'Under' in bet["pick"]:
+                    price = bet["prices"]["over"] if 'Over' in bet["pick"] else bet["prices"]["under"]
+                else:
+                    price = bet["prices"]["homeSpread"] if bet["homeTeam"] in bet["pick"] else bet["prices"]["awaySpread"]
+
+                if unique_key in pick_map:
+                    pick_map[unique_key]["totalEdge"] += bet["edge"]
+                    pick_map[unique_key]["modelCount"] += 1
+                else:
+                    pick_map[unique_key] = {"totalEdge": bet["edge"], "modelCount": 1,
+                                            "price": price, "result": bet["wl"]}
+                    row_data_map[unique_key] = bet
+
+            # Filter avg_edge >= 3.0, sort desc, top 5
+            top_picks = []
+            for key, data in pick_map.items():
+                avg_edge = data["totalEdge"] / total_model_count
+                if avg_edge >= 3.0:
+                    top_picks.append({
+                        "key": key, "avgEdge": avg_edge,
+                        "price": data["price"], "result": data["result"],
+                        "rowData": row_data_map[key]
+                    })
+            top_picks.sort(key=lambda x: x["avgEdge"], reverse=True)
+            top_picks = top_picks[:5]
+
+            for community_pick in top_picks:
+                row = community_pick["rowData"]
+                price = community_pick["price"]
+                result = community_pick["result"]
+                avg_edge = community_pick["avgEdge"]
+
+                if result == 'w':
+                    units_won = round(price / 100, 2) if price and price > 0 else round(100 / abs(price), 2) if price else 0
+                elif result == 'l':
+                    units_won = -1.0
+                else:
+                    units_won = None
+
+                bet_type = 'total' if ('Over' in row["pick"] or 'Under' in row["pick"]) else 'spread'
+                summary = f"Community // Pick: {row['pick']}"
+
+                cursor.execute("""
+                    INSERT INTO modelPredictionsMM
+                    (datePredicted, modelId, game_id, game_date, is_completed,
+                     home_team, away_team,
+                     fd_home_spread, fd_home_spreadPrice, fd_away_spread, fd_away_spreadPrice,
+                     fd_over, fd_overPrice, fd_under, fd_underPrice,
+                     predicted_pt_diff, predicted_pt_total, bet_type, edge, unitsBet,
+                     summary, w_l, unitsWon, home_score, away_score, pt_diff, pt_total)
+                    VALUES (?, 999, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            NULL, NULL, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    date, row["gameId"], date,
+                    row["homeTeam"], row["awayTeam"],
+                    row["fdHomeSpread"], row["prices"]["homeSpread"],
+                    row["fdAwaySpread"], row["prices"]["awaySpread"],
+                    row["fdOver"], row["prices"]["over"],
+                    row["fdUnder"], row["prices"]["under"],
+                    bet_type, avg_edge, summary, result, units_won,
+                    row["homeScore"], row["awayScore"], row["ptDiff"], row["ptTotal"]
+                ))
+
+            logger.info(f"Persisted {len(top_picks)} community picks for {date}")
+            new_dates_count += 1
+
+        conn.commit()
+        logger.info(f"Community picks persisted for {new_dates_count} new dates")
+
+    except Exception:
+        logger.error("Community picks persistence failed", exc_info=True)
+    finally:
+        conn.close()
+
+
 def main():
     """Main function to analyze completed games"""
     logger.info("Starting daily model operations")
-    
-    # Analyze completed games
+
     analyze_completed_games()
-    
+    persist_community_picks_mm()
+
     logger.info("Daily model operations completed")
 
 if __name__ == "__main__":
