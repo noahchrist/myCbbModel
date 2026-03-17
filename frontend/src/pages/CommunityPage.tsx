@@ -319,7 +319,7 @@ const CommunityPage = () => {
     <div className="page">
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          <h2>Top Picks</h2>
+          <h2>Top Picks - March Madness</h2>
           <span 
             className="tooltip-trigger"
             onMouseEnter={() => setShowTooltip(true)}

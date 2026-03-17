@@ -25,6 +25,80 @@ if not DB_PATH:
 BASE_URL = "https://api.the-odds-api.com/v4"
 SPORT_KEY = "basketball_ncaab"
 
+# 2026 NCAA Tournament field (68 teams) — kpids from teamsMaster.
+# Using kpids rather than team name strings avoids sensitivity to how the-odds-api formats names.
+# No dedicated tournament sport key exists, so this filter is required to exclude NIT games.
+MM_2026_KPIDS = {
+    3,    # Akron
+    4,    # Alabama
+    11,   # Arizona
+    13,   # Arkansas
+    35,   # BYU
+    357,  # Cal Baptist
+    51,   # Clemson
+    59,   # Connecticut (UConn)
+    73,   # Duke
+    86,   # Florida
+    93,   # Furman
+    98,   # Georgia
+    102,  # Gonzaga
+    109,  # Hawaii
+    110,  # High Point
+    111,  # Hofstra
+    113,  # Houston
+    115,  # Howard
+    116,  # Idaho
+    118,  # Illinois
+    125,  # Iowa
+    126,  # Iowa State
+    133,  # Kansas
+    135,  # Kennesaw State
+    137,  # Kentucky
+    141,  # Lehigh
+    144,  # LIU
+    150,  # Louisville
+    163,  # McNeese
+    166,  # Miami FL
+    167,  # Miami OH
+    168,  # Michigan
+    169,  # Michigan State
+    176,  # Missouri
+    186,  # Nebraska
+    197,  # North Carolina
+    200,  # NC State
+    202,  # North Dakota State
+    209,  # Northern Iowa
+    216,  # Ohio State
+    224,  # Penn
+    230,  # Prairie View A&M
+    234,  # Purdue
+    246,  # Saint Louis
+    247,  # Saint Mary's
+    255,  # Santa Clara
+    259,  # Siena
+    261,  # SMU
+    267,  # South Florida
+    277,  # St. John's
+    283,  # TCU
+    285,  # Tennessee
+    287,  # Tennessee State
+    289,  # Texas
+    290,  # Texas A&M
+    294,  # Texas Tech
+    298,  # Troy
+    306,  # UCF
+    307,  # UCLA
+    309,  # UMBC
+    320,  # Utah State
+    325,  # Vanderbilt
+    326,  # VCU
+    328,  # Villanova
+    329,  # Virginia
+    345,  # Wisconsin
+    347,  # Wright State
+    367,  # Queens
+}
+
 logger.info("Starting The Odds API 2026 ETL...")
 
 try:
@@ -231,13 +305,18 @@ try:
             game_id = game['id']
             home_team = game['home_team']
             away_team = game['away_team']
-            
-            # Convert time and get game date
-            est_time, game_date = convert_to_est_and_game_date(game['commence_time'])
-            
-            # Get team kpids
+
+            # Look up kpids first — used both for MM filter and DB insert
             home_kpid = get_team_kpid(home_team)
             away_kpid = get_team_kpid(away_team)
+
+            # Skip non-MM games (NIT, etc.) — no dedicated tournament sport key exists
+            if home_kpid not in MM_2026_KPIDS or away_kpid not in MM_2026_KPIDS:
+                logger.info(f"Skipping non-MM game: {away_team} @ {home_team} (kpids: {away_kpid}, {home_kpid})")
+                continue
+
+            # Convert time and get game date
+            est_time, game_date = convert_to_est_and_game_date(game['commence_time'])
             
             # Extract odds
             fd_odds = extract_fanduel_odds(game.get('bookmakers', []), home_team)
@@ -296,46 +375,50 @@ try:
     
     for game in scores_data:
         try:
-            if not game.get('completed'):
-                continue
-                
             game_id = game['id']
             home_team = game['home_team']
             away_team = game['away_team']
-            
+
+            # Look up kpids first — used both for MM filter and DB insert
+            home_kpid = get_team_kpid(home_team)
+            away_kpid = get_team_kpid(away_team)
+
+            # Skip non-MM games (NIT, etc.)
+            if home_kpid not in MM_2026_KPIDS or away_kpid not in MM_2026_KPIDS:
+                continue
+
+            if not game.get('completed'):
+                continue
+
             # Get scores
             home_score = None
             away_score = None
-            
+
             for score in game.get('scores', []):
                 if score['name'] == home_team:
                     home_score = score['score']
                 elif score['name'] == away_team:
                     away_score = score['score']
-            
+
             if home_score is not None and away_score is not None:
                 pt_diff = int(home_score) - int(away_score)
                 pt_total = int(home_score) + int(away_score)
-                
+
                 # Update existing game with scores
                 cursor.execute("""
-                    UPDATE gamesMM 
+                    UPDATE gamesMM
                     SET home_score = ?, away_score = ?, pt_diff = ?, pt_total = ?, is_completed = 1
                     WHERE game_id = ?
                 """, (home_score, away_score, pt_diff, pt_total, game_id))
-                
+
                 if cursor.rowcount > 0:
                     scores_processed += 1
                 else:
                     # Game doesn't exist, insert it with scores
                     logger.info(f"Adding new completed game: {game_id}")
-                    
+
                     # Convert time and get game date
                     est_time, game_date = convert_to_est_and_game_date(game['commence_time'])
-                    
-                    # Get team kpids
-                    home_kpid = get_team_kpid(home_team)
-                    away_kpid = get_team_kpid(away_team)
                     
                     cursor.execute("""
                         INSERT INTO gamesMM (
