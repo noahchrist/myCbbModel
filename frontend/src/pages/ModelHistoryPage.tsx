@@ -111,6 +111,7 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
     };
   };
 
+  /* END OF SEASON MAINTENANCE - disabled until data pipeline is fixed
   const handleDeleteModel = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -131,6 +132,7 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
       console.error('Error deleting model:', error);
     }
   };
+  */
 
   const fetchModelHistory = async () => {
     if (!user) return;
@@ -277,8 +279,9 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
           </>
         )}
         
+        {/* END OF SEASON MAINTENANCE - delete button disabled until data pipeline is fixed
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem', paddingBottom: '2rem' }}>
-          <button 
+          <button
             onClick={() => setShowDeleteConfirm(true)}
             className="btn btn-outline"
             style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
@@ -286,27 +289,21 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
             Delete Model
           </button>
         </div>
+        */}
       </div>
-      
+
+      {/* END OF SEASON MAINTENANCE - delete confirmation modal disabled
       {showDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal" style={{ textAlign: 'center' }}>
             <h2>Delete Model</h2>
             <p>Are you sure you want to delete "{model.modelName}"? This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-              <button 
-                className="btn btn-outline" 
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary" 
+              <button className="btn btn-outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
                 style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  handleDeleteModel();
-                }}
+                onClick={() => { setShowDeleteConfirm(false); handleDeleteModel(); }}
               >
                 Delete
               </button>
@@ -314,6 +311,7 @@ const ModelHistoryPage = ({ user, model, onBack, onDelete }: ModelHistoryProps) 
           </div>
         </div>
       )}
+      */}
       
       <ToastContainer />
     </div>

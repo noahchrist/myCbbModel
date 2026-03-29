@@ -111,7 +111,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
   const handleLogout = async () => {
     setUser(null);
     await supabase.auth.signOut();
-    setActiveTab('home');
+    setActiveTab('community');
   };
 
   const handleNavClick = (tab: TabType) => {
@@ -155,13 +155,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
 
       <nav className="nav">
         <div className="nav-content">
-          <button 
-            className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => handleNavClick('home')}
-          >
-            Games
-          </button>
-          <button 
+          <button
             className={`nav-btn ${activeTab === 'models' ? 'active' : ''}`}
             onClick={() => handleNavClick('models')}
           >
@@ -185,13 +179,7 @@ const Layout = ({ children, activeTab, setActiveTab, user, setUser }: LayoutProp
       </nav>
 
       <nav className={`nav-mobile ${mobileMenuOpen ? 'open' : ''}`}>
-        <button 
-          className={`nav-btn ${activeTab === 'home' ? 'active' : ''}`}
-          onClick={() => handleNavClick('home')}
-        >
-          Games
-        </button>
-        <button 
+        <button
           className={`nav-btn ${activeTab === 'models' ? 'active' : ''}`}
           onClick={() => handleNavClick('models')}
         >

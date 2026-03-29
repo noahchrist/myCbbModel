@@ -16,58 +16,12 @@ interface CommunityModel {
   isActive: boolean;
 }
 
-interface Bet {
-  gameId: string;
-  pick: string;
-  edge: number;
-  homeTeam: string;
-  awayTeam: string;
-  wl: string | null;
-  modelId: number;
-  prices: {
-    homeSpread: number;
-    awaySpread: number;
-    over: number;
-    under: number;
-  };
-}
-
-interface TopPick {
-  pick: string;
-  totalEdge: number;
-  modelCount: number;
-  price: number;
-  result: string | null;
-}
-
-interface PickData {
-  totalEdge: number;
-  modelCount: number;
-  price: number;
-  result: string | null;
-}
 
 const CommunityPage = () => {
   const [communityModels, setCommunityModels] = useState<CommunityModel[]>([]);
-  const [topPicks, setTopPicks] = useState<TopPick[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date();
-    const estDate = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
-    const year = estDate.getFullYear();
-    const month = String(estDate.getMonth() + 1).padStart(2, '0');
-    const day = String(estDate.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
   const [collapsedCards, setCollapsedCards] = useState<Set<number>>(new Set());
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [topPicksPerformance, setTopPicksPerformance] = useState({
-    record: '0-0',
-    unitsBet: '0',
-    unitsWon: '0',
-    roi: '0%'
-  });
-  const [allModelsData, setAllModelsData] = useState<CommunityModel[]>([]);
   const [showTooltip, setShowTooltip] = useState(false);
 
   const getModelColors = (tenDigit: number) => {
@@ -119,132 +73,17 @@ const CommunityPage = () => {
     try {
       const response = await fetch(`${API_URL}/community-models`);
       const data = await response.json();
-      const allModels = data.models || [];
-      // Filter to only show active models for display
-      const activeModels = allModels.filter((model: CommunityModel) => model.isActive);
+      const activeModels = (data.models || []).filter((model: CommunityModel) => model.isActive);
       setCommunityModels(activeModels);
-      // Initialize collapsed state - collapse all except top row
       const cardsPerRow = getCardsPerRow();
       const initialCollapsed = new Set<number>();
-      activeModels.forEach((model: CommunityModel, index: number) => {
+      activeModels.forEach((_: CommunityModel, index: number) => {
         if (index >= cardsPerRow) initialCollapsed.add(index);
       });
       setCollapsedCards(initialCollapsed);
-      
-      // Store all models (including deleted) for All Models stats calculation
-      setAllModelsData(allModels);
     } catch (error) {
       console.error('Error fetching community models:', error);
     }
-  };
-
-  const fetchTopPicks = async (date: string) => {
-    try {
-      const response = await fetch(`${API_URL}/todays-top-picks?date=${date}`);
-      const data = await response.json();
-      const bets: Bet[] = data.bets || [];
-      
-      // Get unique model count
-      const uniqueModelIds = new Set(bets.map(bet => bet.modelId));
-      const totalModelCount = uniqueModelIds.size;
-      
-      // Aggregate bets by unique pick (gameId + pick combination)
-      const pickMap = new Map<string, PickData>();
-      
-      bets.forEach(bet => {
-        if (bet.pick && bet.gameId) {
-          // Create unique key combining gameId, pick, and result (w_l is same for all models)
-          const uniqueKey = `${bet.gameId}:${bet.pick}:${bet.wl || 'pending'}`;
-          
-          // Format pick with team names for totals and determine price
-          let formattedPick = bet.pick;
-          let price = 0;
-          
-          if (bet.pick.includes('Over') || bet.pick.includes('Under')) {
-            formattedPick = `${bet.homeTeam} vs ${bet.awayTeam} ${bet.pick}`;
-            price = bet.pick.includes('Over') ? bet.prices.over : bet.prices.under;
-          } else {
-            // Spread bet - determine price based on which team is picked
-            if (bet.pick.includes(bet.homeTeam)) {
-              price = bet.prices.homeSpread;
-            } else {
-              price = bet.prices.awaySpread;
-            }
-          }
-          
-          const existing = pickMap.get(uniqueKey);
-          if (existing) {
-            // Same pick from multiple models - add edge and increment count
-            existing.totalEdge += bet.edge;
-            existing.modelCount += 1;
-          } else {
-            // New unique pick
-            pickMap.set(uniqueKey, {
-              totalEdge: bet.edge,
-              modelCount: 1,
-              price: price,
-              result: bet.wl
-            });
-          }
-        }
-      });
-      
-      // Convert to array and sort by total edge
-      const aggregatedPicks = Array.from(pickMap.entries())
-        .map(([key, data]) => {
-          const [gameId, pick] = key.split(':');
-          
-          // Format pick with team names for totals
-          const bet = bets.find(b => b.gameId === gameId && b.pick === pick);
-          const formattedPick = bet && (pick.includes('Over') || pick.includes('Under')) 
-            ? `${bet.homeTeam} vs ${bet.awayTeam} ${pick}`
-            : pick;
-          
-          return {
-            pick: formattedPick,
-            totalEdge: data.totalEdge / totalModelCount,
-            modelCount: data.modelCount,
-            price: data.price,
-            result: data.result
-          };
-        })
-        .filter(pick => pick.totalEdge >= 3.0)
-        .sort((a, b) => b.totalEdge - a.totalEdge)
-        .slice(0, 5);
-      
-      setTopPicks(aggregatedPicks);
-    } catch (error) {
-      console.error('Error fetching top picks:', error);
-    }
-  };
-  
-  const changeDate = (days: number) => {
-    const newDate = new Date(selectedDate + 'T00:00:00');
-    newDate.setDate(newDate.getDate() + days);
-    const dateString = newDate.toISOString().split('T')[0];
-    setSelectedDate(dateString);
-  };
-  
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-  
-  const getPickStyle = (result: string | null) => {
-    if (result === 'w') {
-      return {
-        border: '2px solid #c8e6c9'
-      };
-    } else if (result === 'l') {
-      return {
-        border: '2px solid #e8b4b4'
-      };
-    }
-    return {};
   };
 
   const toggleCardCollapse = (index: number) => {
@@ -268,20 +107,49 @@ const CommunityPage = () => {
     setCollapsedCards(allIndices);
   };
 
-  const getAllModelsStats = () => {
-    // Use all models data (including deleted ones) for comprehensive stats
-    const totalWins = allModelsData.reduce((sum, model) => sum + model.wins, 0);
-    const totalLosses = allModelsData.reduce((sum, model) => sum + model.losses, 0);
-    const totalUnitsBet = allModelsData.reduce((sum, model) => sum + model.unitsBet, 0);
-    const totalUnitsWon = allModelsData.reduce((sum, model) => sum + model.unitsWon, 0);
-    const roi = totalUnitsBet > 0 ? (totalUnitsWon / totalUnitsBet * 100) : 0;
-    
-    return {
-      record: `${totalWins}-${totalLosses}`,
-      unitsBet: totalUnitsBet.toFixed(2),
-      unitsWon: totalUnitsWon > 0 ? `+${totalUnitsWon.toFixed(2)}` : totalUnitsWon.toFixed(2),
-      roi: `${roi.toFixed(1)}%`
-    };
+
+  /* END OF SEASON MAINTENANCE - disabled until data pipeline is fixed
+  const fetchTopPicks = async (date: string) => {
+    try {
+      const response = await fetch(`${API_URL}/todays-top-picks?date=${date}`);
+      const data = await response.json();
+      const bets: Bet[] = data.bets || [];
+      const uniqueModelIds = new Set(bets.map(bet => bet.modelId));
+      const totalModelCount = uniqueModelIds.size;
+      const pickMap = new Map<string, PickData>();
+      bets.forEach(bet => {
+        if (bet.pick && bet.gameId) {
+          const uniqueKey = `${bet.gameId}:${bet.pick}:${bet.wl || 'pending'}`;
+          let price = 0;
+          if (bet.pick.includes('Over') || bet.pick.includes('Under')) {
+            price = bet.pick.includes('Over') ? bet.prices.over : bet.prices.under;
+          } else {
+            price = bet.pick.includes(bet.homeTeam) ? bet.prices.homeSpread : bet.prices.awaySpread;
+          }
+          const existing = pickMap.get(uniqueKey);
+          if (existing) {
+            existing.totalEdge += bet.edge;
+            existing.modelCount += 1;
+          } else {
+            pickMap.set(uniqueKey, { totalEdge: bet.edge, modelCount: 1, price, result: bet.wl });
+          }
+        }
+      });
+      const aggregatedPicks = Array.from(pickMap.entries())
+        .map(([key, data]) => {
+          const [gameId, pick] = key.split(':');
+          const bet = bets.find(b => b.gameId === gameId && b.pick === pick);
+          const formattedPick = bet && (pick.includes('Over') || pick.includes('Under'))
+            ? `${bet.homeTeam} vs ${bet.awayTeam} ${pick}` : pick;
+          return { pick: formattedPick, totalEdge: data.totalEdge / totalModelCount, modelCount: data.modelCount, price: data.price, result: data.result };
+        })
+        .filter(pick => pick.totalEdge >= 3.0)
+        .sort((a, b) => b.totalEdge - a.totalEdge)
+        .slice(0, 5);
+      setTopPicks(aggregatedPicks);
+    } catch (error) {
+      console.error('Error fetching top picks:', error);
+    }
   };
 
   const fetchTopPicksPerformance = async () => {
@@ -299,13 +167,28 @@ const CommunityPage = () => {
     }
   };
 
+  const getAllModelsStats = () => {
+    const totalWins = allModelsData.reduce((sum, model) => sum + model.wins, 0);
+    const totalLosses = allModelsData.reduce((sum, model) => sum + model.losses, 0);
+    const totalUnitsBet = allModelsData.reduce((sum, model) => sum + model.unitsBet, 0);
+    const totalUnitsWon = allModelsData.reduce((sum, model) => sum + model.unitsWon, 0);
+    const roi = totalUnitsBet > 0 ? (totalUnitsWon / totalUnitsBet * 100) : 0;
+    return {
+      record: `${totalWins}-${totalLosses}`,
+      unitsBet: totalUnitsBet.toFixed(2),
+      unitsWon: totalUnitsWon > 0 ? `+${totalUnitsWon.toFixed(2)}` : totalUnitsWon.toFixed(2),
+      roi: `${roi.toFixed(1)}%`
+    };
+  };
+  */
+
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchCommunityModels(), fetchTopPicks(selectedDate), fetchTopPicksPerformance()]);
+      await fetchCommunityModels();
       setLoading(false);
     };
     fetchData();
-  }, [selectedDate]);
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -319,8 +202,8 @@ const CommunityPage = () => {
     <div className="page">
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          <h2>Top Picks - March Madness</h2>
-          <span 
+          <h2>Top Picks</h2>
+          <span
             className="tooltip-trigger"
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
@@ -334,31 +217,11 @@ const CommunityPage = () => {
             </div>
           )}
         </div>
-        <div className="date-nav">
-          <button onClick={() => changeDate(-1)} className="btn btn-outline">←</button>
-          <span className="selected-date">{formatDate(selectedDate)}</span>
-          <button onClick={() => changeDate(1)} className="btn btn-outline">→</button>
-        </div>
       </div>
-      
+
       <div className="page-content">
         <div className="top-picks-section">
-          {loading ? (
-            <div className="loading">Loading picks...</div>
-          ) : topPicks.length === 0 ? (
-            <div className="empty-state">No picks available for {formatDate(selectedDate)}</div>
-          ) : (
-            <div className="picks-list">
-              {topPicks.map((pick, index) => (
-                <div key={index} className="pick-row" style={getPickStyle(pick.result)}>
-                  <div className="pick-info">
-                    <span className="pick-name">{pick.pick} ({pick.price > 0 ? '+' : ''}{pick.price})</span>
-                  </div>
-                  <div className="pick-edge">{pick.totalEdge.toFixed(1)} CE</div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="empty-state">2025-2026 season stats coming soon</div>
         </div>
 
         <div className="community-performance-section">
@@ -372,19 +235,19 @@ const CommunityPage = () => {
               <div className="model-stats">
                 <div className="stat">
                   <span className="stat-label">Record</span>
-                  <span className="stat-value">{topPicksPerformance.record}</span>
+                  <span className="stat-value">0-0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Units Bet</span>
-                  <span className="stat-value">{topPicksPerformance.unitsBet}</span>
+                  <span className="stat-value">0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Units Won</span>
-                  <span className="stat-value">{topPicksPerformance.unitsWon}</span>
+                  <span className="stat-value">0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">ROI</span>
-                  <span className="stat-value">{topPicksPerformance.roi}</span>
+                  <span className="stat-value">0%</span>
                 </div>
               </div>
             </div>
@@ -394,19 +257,19 @@ const CommunityPage = () => {
               <div className="model-stats">
                 <div className="stat">
                   <span className="stat-label">Record</span>
-                  <span className="stat-value">{getAllModelsStats().record}</span>
+                  <span className="stat-value">0-0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Units Bet</span>
-                  <span className="stat-value">{getAllModelsStats().unitsBet}</span>
+                  <span className="stat-value">0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Units Won</span>
-                  <span className="stat-value">{getAllModelsStats().unitsWon}</span>
+                  <span className="stat-value">0</span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">ROI</span>
-                  <span className="stat-value">{getAllModelsStats().roi}</span>
+                  <span className="stat-value">0%</span>
                 </div>
               </div>
             </div>
@@ -457,7 +320,7 @@ const CommunityPage = () => {
                     <div className="model-stats">
                       <div className="stat">
                         <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Record</span>
-                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.wins}-{model.losses}</span>
+                        <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>0-0</span>
                       </div>
                       {!isCollapsed && (
                         <>
@@ -467,15 +330,15 @@ const CommunityPage = () => {
                           </div>
                           <div className="stat">
                             <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Bet</span>
-                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsBet}</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>0</span>
                           </div>
                           <div className="stat">
                             <span className="stat-label" style={{ color: modelStyle.colors.primary }}>Units Won</span>
-                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.unitsWon > 0 ? '+' : ''}{model.unitsWon}</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>0</span>
                           </div>
                           <div className="stat">
                             <span className="stat-label" style={{ color: modelStyle.colors.primary }}>ROI</span>
-                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>{model.roi}%</span>
+                            <span className="stat-value" style={{ color: modelStyle.colors.secondary }}>0%</span>
                           </div>
                         </>
                       )}

@@ -13,7 +13,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 type TabType = 'home' | 'models' | 'community' | 'account';
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [activeTab, setActiveTab] = useState<TabType>('community');
   const [user, setUser] = useState<User | null>(null);
   const [modelsResetKey, setModelsResetKey] = useState(0);
 
@@ -43,7 +43,7 @@ const App = () => {
       case 'community':
         return <CommunityPage />;
       case 'account':
-        return <AccountPage user={user} onLogout={() => { setUser(null); setActiveTab('home'); }} />;
+        return <AccountPage user={user} onLogout={() => { setUser(null); setActiveTab('community'); }} />;
       default:
         return <GamesPage />;
     }
