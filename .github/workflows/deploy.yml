@@ -19,8 +19,8 @@ jobs:
 
     - name: Deploy to Lightsail
       run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} << 'EOF'
-
+        ssh -o StrictHostKeyChecking=no ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} bash -s << 'EOF'
+        set -e
         cd ~/myCbbModel
 
         # Pull latest repo changes
