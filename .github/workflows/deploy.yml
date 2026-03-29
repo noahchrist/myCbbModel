@@ -19,8 +19,8 @@ jobs:
 
     - name: Deploy to Lightsail
       run: |
-        cat > /tmp/deploy.sh << 'SCRIPT'
-        set -e
+        ssh -o StrictHostKeyChecking=no ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} << 'EOF'
+
         cd ~/myCbbModel
 
         # Pull latest repo changes
@@ -40,7 +40,5 @@ jobs:
         sudo rm -rf /var/www/html/*
         sudo cp -r dist/* /var/www/html/
         sudo systemctl reload nginx
-        SCRIPT
 
-        scp -o StrictHostKeyChecking=no /tmp/deploy.sh ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }}:/tmp/deploy.sh
-        ssh -o StrictHostKeyChecking=no ${{ secrets.LIGHTSAIL_USER }}@${{ secrets.LIGHTSAIL_HOST }} "bash /tmp/deploy.sh"
+        EOF
