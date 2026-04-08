@@ -203,29 +203,28 @@ async def get_community_models():
     db_path = os.environ.get('DB_PATH') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'master.db'))
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     cursor.execute(
-        """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit,
-           m.w_l_overall, m.unitsBetOverall, m.unitsWonOverall, m.modelPath
-           FROM modelDetailsMM m
+        """SELECT m.id, m.modelName, u.displayName, m.dateCreated, m.bettingStyle, m.tenDigit, m.modelPath,
+           COALESCE(SUM(CASE WHEN p.w_l = 'w' THEN 1 ELSE 0 END), 0) as wins,
+           COALESCE(SUM(CASE WHEN p.w_l = 'l' THEN 1 ELSE 0 END), 0) as losses,
+           COALESCE(SUM(p.unitsBet), 0) as unitsBet,
+           COALESCE(SUM(p.unitsWon), 0) as unitsWon
+           FROM modelDetails m
            LEFT JOIN users u ON m.userId = u.id
-           ORDER BY CASE WHEN m.unitsBetOverall > 0 THEN m.unitsWonOverall / m.unitsBetOverall ELSE 0 END DESC"""
+           LEFT JOIN modelPredictions p ON m.id = p.modelId
+               AND p.is_completed = 1 AND p.game_date <= '2026-03-10'
+           WHERE m.id != 999
+           GROUP BY m.id
+           ORDER BY CASE WHEN SUM(p.unitsBet) > 0 THEN SUM(p.unitsWon) / SUM(p.unitsBet) ELSE 0 END DESC"""
     )
-    
+
     models = []
     for row in cursor.fetchall():
-        model_id, name, user, created, style, ten_digit, w_l_overall, units_bet, units_won, model_path = row
-        
-        # Parse wins/losses from w_l_overall (format: "1-0")
-        wins, losses = 0, 0
-        if w_l_overall:
-            try:
-                wins, losses = map(int, w_l_overall.split('-'))
-            except:
-                wins, losses = 0, 0
-        
+        model_id, name, user, created, style, ten_digit, model_path, wins, losses, units_bet, units_won = row
+
         roi = (units_won / units_bet * 100) if units_bet and units_bet > 0 else 0
-        
+
         models.append({
             "id": model_id,
             "modelName": name,
@@ -240,7 +239,7 @@ async def get_community_models():
             "roi": round(roi, 1),
             "isActive": model_path is not None
         })
-    
+
     conn.close()
     return {"models": models}
 
@@ -431,23 +430,168 @@ async def get_top_picks_performance():
         SELECT
             SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
             SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END),
-            SUM(unitsWon),
-            COUNT(*)
-        FROM modelPredictionsMM WHERE modelId = 999 AND is_completed = 1
+            SUM(unitsBet),
+            SUM(unitsWon)
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10'
     """)
     row = cursor.fetchone()
     conn.close()
 
-    wins, losses, units_won, total_bets = row if row else (0, 0, 0, 0)
+    wins, losses, units_bet, units_won = row if row else (0, 0, 0, 0)
     wins = wins or 0
     losses = losses or 0
+    units_bet = units_bet or 0
     units_won = units_won or 0
-    total_bets = total_bets or 0
-    roi = (units_won / total_bets * 100) if total_bets > 0 else 0
+    roi = (units_won / units_bet * 100) if units_bet > 0 else 0
 
     return {
         "record": f"{wins}-{losses}",
-        "unitsBet": round(float(total_bets), 2),
+        "unitsBet": round(float(units_bet), 2),
         "unitsWon": round(float(units_won), 2),
         "roi": round(roi, 1)
+    }
+
+
+async def get_all_models_performance():
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END),
+            SUM(unitsBet),
+            SUM(unitsWon)
+        FROM modelPredictions
+        WHERE modelId != 999 AND is_completed = 1 AND game_date <= '2026-03-10'
+    """)
+    row = cursor.fetchone()
+    conn.close()
+
+    wins, losses, units_bet, units_won = row if row else (0, 0, 0, 0)
+    wins = wins or 0
+    losses = losses or 0
+    units_bet = units_bet or 0
+    units_won = units_won or 0
+    roi = (units_won / units_bet * 100) if units_bet > 0 else 0
+
+    return {
+        "record": f"{wins}-{losses}",
+        "unitsBet": round(float(units_bet), 2),
+        "unitsWon": round(float(units_won), 2),
+        "roi": round(roi, 1)
+    }
+
+
+async def get_season_summary():
+    db_path = os.environ.get('DB_PATH')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Overall stats
+    cursor.execute("""
+        SELECT
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END),
+            SUM(unitsBet),
+            SUM(unitsWon)
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10'
+    """)
+    row = cursor.fetchone()
+    wins, losses, units_bet, units_won = row if row else (0, 0, 0, 0)
+    wins = wins or 0
+    losses = losses or 0
+    units_bet = units_bet or 0
+    units_won = units_won or 0
+    roi = (units_won / units_bet * 100) if units_bet > 0 else 0
+
+    # By bet type (spread vs total)
+    cursor.execute("""
+        SELECT bet_type,
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END)
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10'
+        GROUP BY bet_type
+    """)
+    by_type = {"spread": {"wins": 0, "losses": 0}, "total": {"wins": 0, "losses": 0}}
+    for bt_row in cursor.fetchall():
+        bt, bw, bl = bt_row
+        if bt in by_type:
+            by_type[bt] = {"wins": bw or 0, "losses": bl or 0}
+
+    # Fav vs underdog (spread bets only) — derived from summary pick text
+    # Format: "Community Pick | Pick: Team Name +X.X" (dog) or "Team Name -X.X" (fav)
+    cursor.execute("""
+        SELECT
+            CASE
+                WHEN summary GLOB '* +[0-9]*' THEN 'dog'
+                WHEN summary GLOB '* -[0-9]*' THEN 'fav'
+                ELSE NULL
+            END as pick_side,
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END)
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10' AND bet_type = 'spread'
+        GROUP BY pick_side
+    """)
+    by_fav_dog = {"fav": {"wins": 0, "losses": 0}, "dog": {"wins": 0, "losses": 0}}
+    for fd_row in cursor.fetchall():
+        side, fw, fl = fd_row
+        if side in by_fav_dog:
+            by_fav_dog[side] = {"wins": fw or 0, "losses": fl or 0}
+
+    # Over vs under (total bets only) — derived from summary pick text
+    # Format: "Community Pick | Pick: Over 153.5" or "Under 134.5"
+    cursor.execute("""
+        SELECT
+            CASE
+                WHEN summary LIKE '%Over%' THEN 'over'
+                WHEN summary LIKE '%Under%' THEN 'under'
+                ELSE NULL
+            END as pick_side,
+            SUM(CASE WHEN w_l = 'w' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN w_l = 'l' THEN 1 ELSE 0 END)
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10' AND bet_type = 'total'
+        GROUP BY pick_side
+    """)
+    by_over_under = {"over": {"wins": 0, "losses": 0}, "under": {"wins": 0, "losses": 0}}
+    for ou_row in cursor.fetchall():
+        side, ow, ol = ou_row
+        if side in by_over_under:
+            by_over_under[side] = {"wins": ow or 0, "losses": ol or 0}
+
+    # Time series: cumulative units won by date
+    cursor.execute("""
+        SELECT game_date, SUM(unitsWon) as daily_units
+        FROM modelPredictions
+        WHERE modelId = 999 AND is_completed = 1 AND game_date <= '2026-03-10'
+        GROUP BY game_date
+        ORDER BY game_date ASC
+    """)
+    time_series = []
+    cumulative = 0.0
+    for ts_row in cursor.fetchall():
+        date, daily = ts_row
+        cumulative += daily or 0
+        time_series.append({"date": date, "cumulativeUnitsWon": round(cumulative, 2)})
+
+    conn.close()
+
+    return {
+        "overall": {
+            "wins": wins,
+            "losses": losses,
+            "unitsBet": round(float(units_bet), 2),
+            "unitsWon": round(float(units_won), 2),
+            "roi": round(roi, 1)
+        },
+        "byType": by_type,
+        "byFavDog": by_fav_dog,
+        "byOverUnder": by_over_under,
+        "timeSeries": time_series
     }

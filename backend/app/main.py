@@ -11,8 +11,9 @@ print("USING PYTHON:", sys.executable)
 from .auth import get_current_user, sync_user_in_local_db, UserCreate
 from .games import get_games_by_date
 from .models import (
-    get_model_names, get_user_models, create_model, 
-    get_community_models, delete_model, get_model_history, get_todays_top_picks, get_model_daily_picks, get_top_picks_performance, ModelCreate
+    get_model_names, get_user_models, create_model,
+    get_community_models, delete_model, get_model_history, get_todays_top_picks, get_model_daily_picks,
+    get_top_picks_performance, get_all_models_performance, get_season_summary, ModelCreate
 )
 
 load_dotenv()
@@ -111,3 +112,11 @@ async def model_daily_picks(model_id: int, date: str, user_id: str = Depends(get
 @app.get("/top-picks-performance")
 async def top_picks_performance():
     return await get_top_picks_performance()
+
+@app.get("/all-models-performance")
+async def all_models_performance():
+    return await get_all_models_performance()
+
+@app.get("/season-summary")
+async def season_summary():
+    return await get_season_summary()
