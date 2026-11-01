@@ -11,7 +11,7 @@ GitHub (main) --Actions deploy--> AWS Lightsail (us-east-2, Ubuntu 22.04, 1 GB R
                                     ├─ nginx :443  weightroom.io / www      -> static React build in /var/www/html
                                     ├─ nginx :443  api.weightroom.io        -> proxy 127.0.0.1:8000
                                     ├─ systemd `weightroom` = uvicorn app.main:app (FastAPI, port 8000, firewalled from internet)
-                                    └─ cron 12:00 UTC -> backend/etl/run_daily.sh (data collection)
+                                    └─ cron 12:00 UTC run_daily.sh (KenPom + scores); cron */15 run_odds.sh (odds)
 Auth: Supabase (JWT verified in backend/app/auth.py). Everything else is SQLite on the server's disk.
 ```
 
@@ -57,14 +57,14 @@ Deploy does not touch cron, databases, or env files.
 
 ## Data collection (backend/etl) — see `backend/etl/COLLECTION.md`
 
-- `run_daily.sh` (cron, 12:00 UTC = 6 AM CST / 7 AM CDT; shift to 11:00 for 6 AM CDT) runs, under `flock`, `10_kenpom_snapshot.py` then `20_odds_snapshot.py`. Exit non-zero if either fails; each logs a row to `etl_runs` in `collect.db`.
+- `run_daily.sh` (cron, 12:00 UTC = 6 AM CST / 7 AM CDT; shift to 11:00 for 6 AM CDT) runs, under `flock`, `10_kenpom_snapshot.py` then `20_odds_snapshot.py --mode scores`; `run_odds.sh` (cron every 15 min, own lock) runs `--mode odds` (spreads+totals, change-only rows -> opening/closing line capture). Exit non-zero if either fails; each logs a row to `etl_runs` in `collect.db`.
 - `collect.db`: `kenpom_raw` / `kenpom_norm` (PK season, snapshot_date, kpid; includes `data_through`), `games` (one row/game, score written once), `odds_snapshots` (append-only, pre-game lines only), `etl_runs`; views `games_current`, `odds_closing`.
 - `SEASON` is hardcoded in `etl/common.py` (currently **2027** = the 2026-27 season; it's KenPom's `y` value). Bump once a year.
 - Replay without network: `10_kenpom_snapshot.py --replay FILE`, `20_odds_snapshot.py --odds-file A --scores-file B [--now ISO]`. **Test against a scratch copy** (set `DB_PATH`, `ETL_LOG_DIR`, `COLLECT_DB_PATH` env vars) — never against live `collect.db`.
 - Team-name join: The Odds API names -> `teamsMaster.theoddsTeamName` -> `kpid`. Unmatched names are stored with NULL kpid and logged as a warning ("align team names later").
 
 API constraints learned the hard way:
-- **The Odds API**: 500 credits on the current plan (check reset period). One daily run costs ~5 (odds 3 + scores 2); `/sports` is free. Each added market/book/region multiplies cost. Only upcoming games are served — missed odds can't be backfilled.
+- **The Odds API**: paid 20K credits/month plan (key `THEODDS_API_KEY`; the old 500-credit free key is `THEODDS_API_KEY_FREE`, use it for tests via `--key-env`). Odds pull = 2 (spreads+totals), scores = 2; `/sports` is free. Each added market/book/region multiplies cost. Only upcoming games are served — missed odds can't be backfilled.
 - **KenPom**: the per-team loop (~1,460 calls) now gets HTTP 429 with `Retry-After` ≈ 7 min. Use the 4 bulk endpoints (no `team_id`), 4 s apart. Records join to teams by `TeamName` (bulk records lack `TeamID`).
 - KenPom preseason data: only `ratings` is real; other stats are placeholders (0/100/200) until `DataThrough` moves off "Beginning of season". Don't train on those snapshots.
 

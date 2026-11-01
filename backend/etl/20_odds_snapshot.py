@@ -1,14 +1,20 @@
-"""Daily odds + scores pull from The Odds API -> collect.db.
+"""Odds + scores pulls from The Odds API -> collect.db.
 
   games           one row per game; identity upserted from the odds feed, final score
                   written once from the scores feed
-  odds_snapshots  append-only; every pull adds one row per game still to be played
+  odds_snapshots  append-only, change-only: a pull adds a row for a game only when its lines
+                  differ from the game's latest row (so the first row ~ opening line seen, the
+                  last row before tip-off ~ closing line)
 
-Usage:
-    python 20_odds_snapshot.py                                  # live pull (costs ~5 credits)
+Two jobs share this script (see run_odds.sh / run_daily.sh):
+    python 20_odds_snapshot.py --mode odds     # frequent; spreads+totals, costs 2 credits
+    python 20_odds_snapshot.py --mode scores   # daily; costs 2 credits
+    python 20_odds_snapshot.py                 # both
     python 20_odds_snapshot.py --odds-file A --scores-file B    # re-ingest saved payloads, no network
+    --key-env THEODDS_API_KEY_FREE             # use the free key (testing)
 """
 import argparse
+import json
 import os
 import sys
 import time
@@ -27,8 +33,10 @@ logger = get_logger("20_odds_snapshot")
 
 BASE_URL = "https://api.the-odds-api.com/v4"
 SPORT_KEY = "basketball_ncaab"
-LOW_CREDIT_WARNING = 50
+LOW_CREDIT_WARNING = 1000
 MIN_CREDITS_FOR_SCORES = 5
+# The odds job stops pulling below this so the daily scores job can keep running.
+ODDS_CREDIT_FLOOR = 100
 
 EASTERN = ZoneInfo("America/New_York")
 
@@ -142,8 +150,16 @@ def upsert_game(conn, game, name_map, now, unmapped):
     return commence
 
 
+def latest_odds(conn, game_id):
+    row = conn.execute(
+        f"SELECT {','.join(ODDS_COLUMNS)} FROM odds_snapshots WHERE game_id = ? "
+        "ORDER BY pulled_at DESC LIMIT 1", (game_id,)).fetchone()
+    return row
+
+
 def ingest_odds(conn, odds_data, name_map, now):
-    unmapped, snapshots, started = set(), 0, 0
+    """Returns (rows written, new games, already tipped, unchanged, unmapped)."""
+    unmapped, snapshots, started, unchanged, new_games = set(), 0, 0, 0, 0
     with conn:
         for game in odds_data:
             commence = upsert_game(conn, game, name_map, now, unmapped)
@@ -156,11 +172,16 @@ def ingest_odds(conn, odds_data, name_map, now):
             odds = {}
             for prefix, book_key in BOOKS.items():
                 odds.update(extract_book(game.get("bookmakers", []), book_key, prefix, game["home_team"]))
-            conn.execute(INSERT_SNAPSHOT, (
-                game["id"], fmt_ts(now), *[odds.get(c) for c in SNAPSHOT_COLUMNS[2:]]
-            ))
+            values = [odds.get(c) for c in SNAPSHOT_COLUMNS[2:]]
+            prev = latest_odds(conn, game["id"])
+            if prev is not None and tuple(values[:len(ODDS_COLUMNS)]) == tuple(prev):
+                unchanged += 1
+                continue
+            if prev is None:
+                new_games += 1
+            conn.execute(INSERT_SNAPSHOT, (game["id"], fmt_ts(now), *values))
             snapshots += 1
-    return snapshots, started, unmapped
+    return snapshots, new_games, started, unchanged, unmapped
 
 
 def ingest_scores(conn, scores_data, name_map, now):
@@ -192,64 +213,89 @@ def ingest_scores(conn, scores_data, name_map, now):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["odds", "scores", "both"], default="both",
+                        help="odds = frequent line pull; scores = daily results pull")
+    parser.add_argument("--key-env", default="THEODDS_API_KEY",
+                        help="env var holding the API key (THEODDS_API_KEY_FREE for tests)")
     parser.add_argument("--odds-file", help="saved odds payload (skips the odds API call)")
     parser.add_argument("--scores-file", help="saved scores payload (skips the scores API call)")
     parser.add_argument("--now", help="override run time (UTC ISO), for replaying old payloads")
     args = parser.parse_args()
 
-    logger.info(f"Starting odds snapshot for season {SEASON}")
+    do_odds = args.mode in ("odds", "both")
+    do_scores = args.mode in ("scores", "both")
+    script = "20_scores_snapshot" if args.mode == "scores" else "20_odds_snapshot"
+
+    logger.info(f"Starting {script} for season {SEASON} (mode={args.mode})")
     conn = connect_collect()
     now = parse_ts(args.now) if args.now else utc_now()
     name_map = load_theodds_name_map()
 
+    needs_api = (do_odds and not args.odds_file) or (do_scores and not args.scores_file)
     api = None
-    if not (args.odds_file and args.scores_file):
-        api_key = os.environ.get("THEODDS_API_KEY")
+    if needs_api:
+        api_key = os.environ.get(args.key_env)
         if not api_key:
-            raise ValueError("Missing THEODDS_API_KEY in environment variables or .env file")
+            raise ValueError(f"Missing {args.key_env} in environment variables or .env file")
         api = OddsApi(api_key)
 
-    with RunLog(conn, "20_odds_snapshot", logger) as run:
-        # ---- odds ----
-        if args.odds_file:
-            odds_data = load_payload(args.odds_file)
-        else:
-            odds_data = api.get(f"sports/{SPORT_KEY}/odds", {
-                "regions": "us",
-                "markets": "h2h,spreads,totals",
-                "bookmakers": ",".join(BOOKS.values()),
-                "oddsFormat": "american",
-            })
-            logger.info(f"Saved raw odds payload: {save_payload('odds', odds_data, now)}")
+    with RunLog(conn, script, logger) as run:
+        detail = {}
+        unmapped = set()
+        written = 0
 
-        snapshots, started, unmapped = ingest_odds(conn, odds_data, name_map, now)
-        logger.info(f"Odds: {len(odds_data)} games in feed, {snapshots} snapshots written, "
-                    f"{started} already tipped (skipped)")
+        # ---- odds ----
+        if do_odds:
+            last = conn.execute(
+                "SELECT detail FROM etl_runs WHERE script = ? AND status = 'ok' "
+                "ORDER BY run_id DESC LIMIT 1", (script,)).fetchone()
+            last_credits = json.loads(last[0]).get("credits_remaining") if last and last[0] else None
+            if api and last_credits is not None and int(float(last_credits)) < ODDS_CREDIT_FLOOR:
+                raise RuntimeError(f"Only {last_credits} credits left; odds job paused to protect scores")
+
+            if args.odds_file:
+                odds_data = load_payload(args.odds_file)
+            else:
+                odds_data = api.get(f"sports/{SPORT_KEY}/odds", {
+                    "regions": "us",
+                    "markets": "spreads,totals",
+                    "bookmakers": ",".join(BOOKS.values()),
+                    "oddsFormat": "american",
+                })
+                logger.info(f"Saved raw odds payload: {save_payload('odds', odds_data, now)}")
+
+            snapshots, new_games, started, unchanged, unm = ingest_odds(conn, odds_data, name_map, now)
+            unmapped |= unm
+            logger.info(f"Odds: {len(odds_data)} games in feed, {snapshots} rows written "
+                        f"({new_games} new games, {unchanged} unchanged), {started} already tipped (skipped)")
+            written += snapshots
+            detail.update(games_in_feed=len(odds_data), snapshots=snapshots, new_games=new_games,
+                          unchanged=unchanged, already_tipped=started)
 
         # ---- scores ----
-        if args.scores_file:
-            scores_data = load_payload(args.scores_file)
-        elif api.remaining is not None and int(api.remaining) < MIN_CREDITS_FOR_SCORES:
-            raise RuntimeError(f"Only {api.remaining} API credits left; skipping scores")
-        else:
-            scores_data = api.get(f"sports/{SPORT_KEY}/scores", {"daysFrom": 3})
-            logger.info(f"Saved raw scores payload: {save_payload('scores', scores_data, now)}")
+        if do_scores:
+            if args.scores_file:
+                scores_data = load_payload(args.scores_file)
+            elif api.remaining is not None and int(float(api.remaining)) < MIN_CREDITS_FOR_SCORES:
+                raise RuntimeError(f"Only {api.remaining} API credits left; skipping scores")
+            else:
+                scores_data = api.get(f"sports/{SPORT_KEY}/scores", {"daysFrom": 3})
+                logger.info(f"Saved raw scores payload: {save_payload('scores', scores_data, now)}")
 
-        scored, unmapped_scores = ingest_scores(conn, scores_data, name_map, now)
-        unmapped |= unmapped_scores
-        logger.info(f"Scores: {scored} completed games written")
+            scored, unm = ingest_scores(conn, scores_data, name_map, now)
+            unmapped |= unm
+            logger.info(f"Scores: {scored} completed games written")
+            written += scored
+            detail["scored"] = scored
 
         if unmapped:
             logger.warning(f"{len(unmapped)} team names not in teamsMaster (kpid NULL): {sorted(unmapped)}")
-        if api and api.remaining is not None and int(api.remaining) < LOW_CREDIT_WARNING:
+        if api and api.remaining is not None and int(float(api.remaining)) < LOW_CREDIT_WARNING:
             logger.warning(f"Low API credits: {api.remaining} remaining")
 
-        run.rows_written = snapshots + scored
-        run.detail = {
-            "games_in_feed": len(odds_data), "snapshots": snapshots, "already_tipped": started,
-            "scored": scored, "unmapped_teams": sorted(unmapped),
-            "credits_remaining": api.remaining if api else None,
-        }
+        run.rows_written = written
+        detail.update(unmapped_teams=sorted(unmapped), credits_remaining=api.remaining if api else None)
+        run.detail = detail
 
     conn.close()
     return 0

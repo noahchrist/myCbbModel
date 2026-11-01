@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Daily collection: KenPom snapshot, then odds/scores. Run from cron (see COLLECTION.md).
+# Daily collection: KenPom snapshot, then scores (odds are pulled by run_odds.sh). Run from cron (see COLLECTION.md).
 # Takes a lock so runs can never overlap; a failure in one step does not skip the other,
 # but the exit code is non-zero if either failed.
 
@@ -14,5 +14,5 @@ fi
 
 rc=0
 "$PY" 10_kenpom_snapshot.py || rc=1
-"$PY" 20_odds_snapshot.py   || rc=1
+"$PY" 20_odds_snapshot.py --mode scores || rc=1
 exit $rc
