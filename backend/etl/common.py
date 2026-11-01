@@ -150,15 +150,16 @@ LEFT JOIN odds_snapshots o
   ON o.game_id = g.game_id
  AND o.pulled_at = (SELECT MAX(pulled_at) FROM odds_snapshots WHERE game_id = g.game_id);
 
--- Last snapshot taken before tip-off.
+-- Closing line = the game's latest stored row, once it has tipped. Every stored row holds only
+-- quotes the books last updated before tip-off (live in-game quotes are dropped at ingest).
 DROP VIEW IF EXISTS odds_closing;
 CREATE VIEW odds_closing AS
 SELECT g.commence_time_utc, o.*
 FROM games g
 JOIN odds_snapshots o
   ON o.game_id = g.game_id
- AND o.pulled_at = (SELECT MAX(pulled_at) FROM odds_snapshots
-                    WHERE game_id = g.game_id AND pulled_at <= g.commence_time_utc);
+ AND o.pulled_at = (SELECT MAX(pulled_at) FROM odds_snapshots WHERE game_id = g.game_id)
+WHERE g.commence_time_utc <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now');
 COMMIT;
 """
 

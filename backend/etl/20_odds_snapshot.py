@@ -90,14 +90,21 @@ def game_date_et(commence_utc):
     return et.date().isoformat()
 
 
-def extract_book(bookmakers, book_key, prefix, home_team):
-    """Flatten one bookmaker's h2h/spreads/totals into prefixed column names."""
+def extract_book(bookmakers, book_key, prefix, home_team, cutoff=None):
+    """Flatten one bookmaker's h2h/spreads/totals into prefixed column names.
+
+    cutoff (the game's tip-off): a market whose own last_update is after it is a live in-game
+    quote and is dropped, so only pre-game lines are ever stored.
+    """
     out = {}
     for book in bookmakers:
         if book.get("key") != book_key:
             continue
-        out[f"{prefix}_last_update"] = book.get("last_update")
+        kept = 0
         for market in book.get("markets", []):
+            if cutoff is not None and market.get("last_update") and parse_ts(market["last_update"]) > cutoff:
+                continue
+            kept += 1
             for o in market.get("outcomes", []):
                 if market["key"] == "h2h":
                     side = "home" if o["name"] == home_team else "away"
@@ -110,6 +117,8 @@ def extract_book(bookmakers, book_key, prefix, home_team):
                     side = "over" if o["name"] == "Over" else "under"
                     out[f"{prefix}_{side}"] = o.get("point")
                     out[f"{prefix}_{side}Price"] = o["price"]
+        if kept:
+            out[f"{prefix}_last_update"] = book.get("last_update")
         break
     return out
 
@@ -152,7 +161,7 @@ def upsert_game(conn, game, name_map, now, unmapped):
 
 def latest_odds(conn, game_id):
     row = conn.execute(
-        f"SELECT {','.join(ODDS_COLUMNS)} FROM odds_snapshots WHERE game_id = ? "
+        f"SELECT {','.join(SNAPSHOT_COLUMNS[2:])} FROM odds_snapshots WHERE game_id = ? "
         "ORDER BY pulled_at DESC LIMIT 1", (game_id,)).fetchone()
     return row
 
@@ -164,17 +173,23 @@ def ingest_odds(conn, odds_data, name_map, now):
         for game in odds_data:
             commence = upsert_game(conn, game, name_map, now, unmapped)
 
-            # Once a game has tipped the feed can carry live lines; keep only pre-game odds.
-            if commence <= now:
-                started += 1
-                continue
-
+            # After tip-off the feed carries live lines. Keep a quote only if the book last
+            # updated it before the game started (so a pull a few seconds after tip can still
+            # capture the true closing line); live quotes are dropped.
             odds = {}
             for prefix, book_key in BOOKS.items():
-                odds.update(extract_book(game.get("bookmakers", []), book_key, prefix, game["home_team"]))
+                odds.update(extract_book(game.get("bookmakers", []), book_key, prefix,
+                                         game["home_team"], cutoff=commence))
+            if commence <= now and not any(odds.get(c) is not None for c in ODDS_COLUMNS):
+                started += 1
+                continue
             values = [odds.get(c) for c in SNAPSHOT_COLUMNS[2:]]
             prev = latest_odds(conn, game["id"])
-            if prev is not None and tuple(values[:len(ODDS_COLUMNS)]) == tuple(prev):
+            if commence <= now and prev is not None:
+                # Post-tip pull: dropped (live) markets must not blank the stored pre-game line.
+                values = [v if v is not None else p for v, p in zip(values, prev)]
+            n = len(ODDS_COLUMNS)
+            if prev is not None and tuple(values[:n]) == tuple(prev[:n]):
                 unchanged += 1
                 continue
             if prev is None:
