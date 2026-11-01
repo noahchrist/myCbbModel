@@ -74,7 +74,10 @@ def _schema_sql():
 
     snap_cols = ", ".join(f"o.{c}" for c in ODDS_COLUMNS)
 
+    # One transaction (BEGIN IMMEDIATE waits on busy_timeout): jobs that start in the same
+    # second would otherwise race on DROP VIEW / CREATE VIEW ("table games_current already exists").
     return f"""
+BEGIN IMMEDIATE;
 CREATE TABLE IF NOT EXISTS kenpom_raw (
     season INTEGER NOT NULL,
     snapshot_date TEXT NOT NULL,
@@ -156,6 +159,7 @@ JOIN odds_snapshots o
   ON o.game_id = g.game_id
  AND o.pulled_at = (SELECT MAX(pulled_at) FROM odds_snapshots
                     WHERE game_id = g.game_id AND pulled_at <= g.commence_time_utc);
+COMMIT;
 """
 
 
