@@ -42,7 +42,7 @@ ssh -i ~/Documents/keys/LightsailDefaultKey-us-east-2.pem ubuntu@3.129.160.93   
 | `~/weightroomData/raw/{odds,scores,kenpom}/YYYY-MM/*.json.gz` | full raw API responses, the only copy in that form |
 | `~/weightroomLogs/` | ETL logs (daily-rotated, gzipped, 30 days) + `cron.log` |
 | `/var/www/html` | deployed frontend (deploy wipes and recopies it) |
-| `/etc/nginx/sites-enabled/{frontend,weightroom}` | nginx vhosts; TLS by certbot (renewal cron file `/etc/cron.d/certbot` present, not dry-run tested; certs expire mid-Dec 2026) |
+| `/etc/nginx/sites-enabled/{frontend,weightroom}` | nginx vhosts; TLS by certbot 1.21 (nginx plugin; renewal runs from `certbot.timer` twice daily; `sudo certbot renew --dry-run` passed 2026-11-02; certs expire Dec 14 (api) / Dec 18 (apex+www) 2026 and auto-renew ~30 days before) |
 | `/etc/systemd/system/weightroom.service` | backend unit |
 
 `.db` files are gitignored; `master.db`/`collect.db`/`raw` are **not** in git — back them up separately (user keeps `master.db` backups; make sure `collect.db` + `raw/` are included).
